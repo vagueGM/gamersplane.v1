@@ -104,6 +104,16 @@
 			return $forums;
 		}
 
+		public function getForumsVars($forumID = null) {
+			if ($forumID == null) {
+				$forums = array();
+				foreach ($this->forums as $forumID => $forum) 
+					$forums[$forumID] = $forum->getForumVars();
+				return $forums;
+			} else 
+				return get_object_vars($this->forums[$forumID]);
+		}
+
 		public function getAllChildren($forumID = 0, $read = false) {
 			$forums = array($forumID);
 			if (!isset($this->forums[$forumID])) 
@@ -136,7 +146,6 @@
 
 			if (sizeof($this->forums[$this->currentForum]->children) == 0) 
 				return false;
-
 
 			$tableOpen = false;
 			$lastType = 'f';

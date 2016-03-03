@@ -283,6 +283,9 @@ app.config(function ($httpProvider) {
 		});
 	};
 }]).service('ForumsService', ['$http', function ($http) {
+	this.getForum = function (forumID) {
+		return $http.post(API_HOST + '/forums/getForum/', { forumID: forumID }).then(function (data) { return data.data; });
+	};
 	this.getSubscriptions = function (fields) {
 		return $http.post(API_HOST + '/forums/getSubscriptions/', fields).then(function (data) {
 			return data.data;

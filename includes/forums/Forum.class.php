@@ -60,6 +60,10 @@
 				return $this->$key;
 		}
 
+		public function getForumVars() {
+			return get_object_vars($this);
+		}
+
 		public function getForumID() {
 			return $this->forumID;
 		}

@@ -1,1 +1,1 @@
-UPDATE dispatch SET ngController = 'games_cu' WHERE file = 'games/edit.php';
+UPDATE dispatch SET ngController = 'forum' WHERE pageID = 'forum';

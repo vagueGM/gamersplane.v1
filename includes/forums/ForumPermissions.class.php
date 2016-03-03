@@ -1,25 +1,26 @@
 <?
 	class ForumPermissions {
+		public static $scale = array('general' => 1, 'group' => 2, 'user' => 4);
 		protected $permissions;
 
 		public static function getPermissions($userID, $forumIDs, $types = null, $forumsData = null) {
-			global $mysql;
+			global $mongo;
 
 			$userID = intval($userID);
-			if (!is_array($forumIDs)) $forumIDs = array($forumIDs);
-			$queryColumn = array('permissions' => '', 'permissionSums' => '', 'general' => '', 'group' => '');
+			if (!is_array($forumIDs)) 
+				$forumIDs = array($forumIDs);
+			$returnCols = array('_id' => false, 'type' => true, 'forumID' => true);
 			$allTypes = array('read', 'write', 'editPost', 'deletePost', 'createThread', 'deleteThread', 'addRolls', 'addDraws', 'moderate');
-			if ($types == null) $types = $allTypes;
-			elseif (is_string($types)) $types = preg_split('/\s*,\s*/', $types);
+			if ($types == null) 
+				$types = $allTypes;
+			elseif (is_string($types)) 
+				$types = preg_split('/\s*,\s*/', $types);
 
 			foreach ($types as $type) {
-				$queryColumn['permissions'] .= "`$type`, ";
-				$queryColumn['permissionSums'] .= "SUM(`$type`) `$type`, ";
+				$returnCols[$type] = true;
 				$bTemplate[$type] = 0;
 				$aTemplate[$type] = 4;
 			}
-			$queryColumn['permissions'] = substr($queryColumn['permissions'], 0, -2);
-			$queryColumn['permissionSums'] = substr($queryColumn['permissionSums'], 0, -2);
 			
 			$allForumIDs = $forumIDs;
 			$heritages = array();
@@ -30,11 +31,10 @@
 					$allForumIDs = array_merge($allForumIDs, $heritages[$forumID]);
 				}
 			} else {
-				$forumInfos = $mysql->query('SELECT forumID, heritage FROM forums WHERE forumID IN ('.implode(', ', $allForumIDs).')');
-				while (list($forumID, $heritage) = $forumInfos->fetch(PDO::FETCH_NUM)) {
-					$heritages[$forumID] = explode('-', $heritage);
-					array_walk($heritages[$forumID], function (&$value, $key) { $value = intval($value); });
-					$allForumIDs = array_merge($allForumIDs, $heritages[$forumID]);
+				$forumInfos = $mongo->forums->find(['forumID' => ['$in' => $allForumIDs]], ['forumID' => true, 'heritage' => true]);
+				foreach ($forumInfos as $info) {
+					$heritages[$info['forumID']] = explode('-', $info['heritage']);
+					$allForumIDs = array_merge($allForumIDs, $heritages[$info['forumID']]);
 				}
 			}
 			$allForumIDs = array_unique($allForumIDs);
@@ -42,14 +42,15 @@
 
 			if ($userID) {
 				$adminForums = array();
-				$adminIn = $mysql->query("SELECT forumID FROM forumAdmins WHERE userID = $userID AND forumID IN (0, ".implode(', ', $allForumIDs).')');
-				$adminForums = $adminIn->fetchAll(PDO::FETCH_COLUMN);
-				array_walk($adminForums, function (&$value, $key) { $value = intval($value); });
+				$adminIn = $mongo->forums->find(['admins' => $userID, 'forumID' => ['$in' => $allForumIDs]], ['forumID' => true]);
+				foreach ($adminIn as $forum) 
+					$adminForums[] = $forum['forumID'];
 				$getPermissionsFor = array();
 				$superFAdmin = array_search(0, $adminForums) !== false?true:false;
 				foreach ($forumIDs as $forumID) {
 					if (sizeof(array_intersect($heritages[$forumID], $adminForums)) || $superFAdmin) $permissions[$forumID] = array_merge($aTemplate, array('admin' => 4));
-					else $getPermissionsFor[] = $forumID;
+					else 
+						$getPermissionsFor[] = $forumID;
 				}
 				foreach ($getPermissionsFor as $forumID) 
 					$getPermissionsFor = array_merge($getPermissionsFor, $heritages[$forumID]);
@@ -59,27 +60,24 @@
 				$getPermissionsFor = $allForumIDs;
 
 			if (sizeof($getPermissionsFor)) {
-				if (sizeof($getPermissionsFor) == 1) 
-					$forumString = '= '.$getPermissionsFor[0];
-				else {
-					$forumString = implode(', ', $getPermissionsFor);
-					$forumString = 'IN ('.$forumString.')';
-				}
-				$permissionsInfos = $mysql->query("SELECT forumID, 'general' pType, {$queryColumn['permissions']} FROM forums_permissions_general WHERE forumID {$forumString} UNION SELECT forumID, 'group' pType, {$queryColumn['permissions']} FROM forums_permissions_groups_c WHERE userID = {$userID} AND forumID {$forumString} UNION SELECT forumID, 'user' pType, {$queryColumn['permissions']} FROM forums_permissions_users WHERE userID = {$userID} AND forumID {$forumString}");
+				$rGroupMemberships = $mongo->forumGroups->find(array('members' => $userID), array('groupID' => true));
+				$groupMemberships = array();
+				foreach ($rGroupMemberships as $membership) 
+					$groupMemberships[] = $membership['groupID'];
+				$rPermissions = $mongo->forumPermissions->find(array('$or' => array(
+					array('type' => 'general'),
+					array('type' => 'group', 'groupID' => array('$in' => $groupMemberships)),
+					array('type' => 'user', 'userID' => $userID)
+				)), $returnCols);
 				$rawPermissions = array();
-				foreach ($permissionsInfos->fetchAll(PDO::FETCH_GROUP|PDO::FETCH_ASSOC) as $key => $rawPermission) {
-					if (sizeof($rawPermission) == 1) {
-						unset($rawPermission[0]['pType']);
-						$rawPermissions[$key] = $rawPermission[0];
-					} else {
-						$rawPermissions[$key] = $bTemplate;
-						foreach ($rawPermission as $sKey => $indivPermission) {
-							foreach ($indivPermission as $permission => $setAt) {
-								$setAt = (int) $setAt;
-								if ($permission != 'pType' && abs($setAt) > abs($rawPermissions[$key][$permission])) 
-									$rawPermissions[$key][$permission] = $setAt;
-							}
-						}
+				foreach ($rPermissions as $permission) {
+					$forumID = $permission['forumID'];
+					if (!isset($rawPermissions[$forumID])) 
+						$rawPermissions[$forumID] = $bTemplate;
+					foreach ($permission as $type => $setAt) {
+						$setAt = $setAt * ForumPermissions::$scale[$permission['type']];
+						if (!in_array($type, array('type', 'forumID', 'groupID', 'userID')) && abs($setAt) > abs($rawPermissions[$forumID][$type])) 
+							$rawPermissions[$forumID][$type] = $setAt;
 					}
 				}
 
@@ -89,7 +87,8 @@
 					elseif (!isset($permissions[$forumID]))
 						$permissions[$forumID] = $bTemplate;
 					foreach (array_reverse($heritages[$forumID]) as $heritage) {
-						if ($heritage == $forumID) continue;
+						if ($heritage == $forumID) 
+							continue;
 						if (isset($rawPermissions[$heritage])) 
 							foreach ($types as $type) 
 								if (abs($rawPermissions[$heritage][$type]) > abs($permissions[$forumID][$type])) 

@@ -11,3 +11,12 @@ $(function () {
 		});
 	});
 });
+
+/*controllers.controller('forum', ['$scope', 'CurrentUser', 'ForumsService', function ($scope, CurrentUser, ForumsService) {
+	$scope.$emit('pageLoading');
+	pathElements = getPathElements();
+	CurrentUser.load().then(function () {
+		$scope.$emit('pageLoading');
+		ForumsService.getForum(pathElements[1]);
+	});
+}]);*/
