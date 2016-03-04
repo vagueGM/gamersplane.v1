@@ -156,9 +156,9 @@ $(function() {
 });
 
 var app = angular.module('gamersplane', ['controllers', 'ngCookies', 'ngSanitize', 'ngAnimate', 'ngFileUpload', 'angularMoment']);
-app.config(function ($httpProvider) {
+app.config(['$httpProvider', function ($httpProvider) {
 	$httpProvider.defaults.withCredentials = true;
-}).factory('CurrentUser', function ($http) {
+}]).factory('CurrentUser', ['$http', function ($http) {
 	var factory = {};
 	var userData = null;
 
@@ -186,7 +186,7 @@ app.config(function ($httpProvider) {
 	}
 
 	return factory;
-}).service('UsersService', ['$http', 'Upload', function ($http, Upload) {
+}]).service('UsersService', ['$http', 'Upload', function ($http, Upload) {
 	this.get = function (userID) {
 		params = {};
 		if (userID && parseInt(userID) > 0) 
@@ -1072,7 +1072,8 @@ app.config(function ($httpProvider) {
 	$scope.catMap = {};
 	$scope.aFAQs = {};
 	for (key in faqs.categories) 
-		$scope.catMap[faqs.categories[key]] = key;
+		$scope.catMap[key] = faqs.categories[key];
+	console.log(faqs.categories);
 	faqs.get().then(function (data) {
 		if (data.faqs) {
 			$scope.$emit('pageLoading');
