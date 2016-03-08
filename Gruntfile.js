@@ -57,7 +57,10 @@ module.exports = function(grunt) {
 					expand: true,
 					cwd: 'javascript/',
 					src: ['*.js'],
-					dest: 'javascript/'
+					dest: 'javascript/',
+					rename: function (desc, src) {
+						return src.replace('.js', '.min.js');
+					}
 				}]
 			}
 		}
