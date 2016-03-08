@@ -6,13 +6,12 @@
 		protected $forumType;
 		protected $parentID;
 		protected $heritage;
-		protected $childCount;
 		protected $order;
 		protected $gameID = null;
 		protected $threadCount;
 
 		protected $postCount;
-		protected $lastPost = null;
+		protected $latestPost = null;
 		protected $markedRead = 0;
 		protected $newPosts = false;
 
@@ -25,19 +24,11 @@
 
 			$this->forumID = (int) $forumID;
 			foreach (get_object_vars($this) as $key => $value) {
-				if (in_array($key, array('children', 'threads', 'lastPost'))) continue;
-				if (!array_key_exists($key, $forumData)) continue;//throw new Exception('Missing data for '.$this->forumID.': '.$key);
+				if (in_array($key, array('children'))) 
+					continue;
+				if (!array_key_exists($key, $forumData)) 
+					continue;//throw new Exception('Missing data for '.$this->forumID.': '.$key);
 				$this->__set($key, $forumData[$key]);
-			}
-			$this->heritage = explode('-', $this->heritage);
-			array_walk($this->heritage, function (&$value, $key) { $value = intval($value); });
-			if ($this->forumID != 0) $this->heritage = array_merge(array(0), $this->heritage);
-			if (isset($forumData['lastPostID'])) {
-				$this->lastPost = new stdClass();
-				$this->lastPost->postID = $forumData['lastPostID'];
-				$this->lastPost->userID = $forumData['userID'];
-				$this->lastPost->username = $forumData['username'];
-				$this->lastPost->datePosted = $forumData['datePosted'];
 			}
 		}
 
@@ -48,11 +39,13 @@
 				$this->$key = $value;
 			elseif ($key == 'forumType' && in_array(strtolower($value), array('f', 'c'))) 
 				$this->forumType = strtolower($value);
-			elseif (in_array($key, array('parentID', 'childCount', 'order', 'threadCount', 'postCount', 'markedRead'))) 
+			elseif (in_array($key, array('parentID', 'order', 'threadCount', 'postCount', 'markedRead'))) 
 				$this->$key = intval($value);
 			elseif ($key == 'newPosts') 
 				$this->newPosts = $value?true:false;
 			elseif ($key == 'gameID' && (intval($value) || $value == null)) $this->gameID = $value != null?intval($value):null;
+			else 
+				$this->$key = $value;
 		}
 
 		public function __get($key) {
@@ -97,7 +90,8 @@
 					if ($forumID != 0) 
 						$heritage[] = sql_forumIDPad($forumID);
 				return implode('-', $heritage);
-			} else return $this->heritage;
+			} else 
+				return $this->heritage;
 		}
 
 		public function getPermissions($permission = null) {
@@ -131,8 +125,25 @@
 			return $this->gameID?true:false;
 		}
 
+		public function getLatestPost($key = null) {
+			if ($key == null) 
+				return $this->latestPost;
+			elseif (array_key_exists($key, $this->latestPost)) 
+				return $this->latestPost[$key];
+			else 
+				return null;
+		}
+
 		public function getMarkedRead() {
 			return $this->markedRead;
+		}
+
+		public function setNewPosts($state) {
+			$this->newPosts = (bool) $state;
+		}
+
+		public function getNewPosts() {
+			return $this->newPosts;
 		}
 
 		public function getThreads($page = 1) {

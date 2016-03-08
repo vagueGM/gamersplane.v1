@@ -24,60 +24,106 @@
 			$this->currentForum = intval($forumID);
 			if ($this->currentForum < 0) { header('Location: /forums/'); exit; }
 
-			$forumsR = $mysql->query("SELECT f.forumID, f.title, f.description, f.forumType, f.parentID, f.heritage, cc.childCount, f.`order`, f.gameID, f.threadCount, t.numPosts postCount, t.lastPostID, u.userID, u.username, lp.datePosted FROM forums f LEFT JOIN (SELECT parentID forumID, COUNT(forumID) childCount FROM forums GROUP BY (parentID)) cc ON cc.forumID = f.forumID INNER JOIN forums p ON p.forumID = {$this->currentForum} AND (".(bindec($options&$this::NO_CHILDREN) == 0?"f.heritage LIKE CONCAT(p.heritage, '%') OR ":'')."p.heritage LIKE CONCAT(f.heritage, '%')) LEFT JOIN (SELECT forumID, SUM(postCount) numPosts, MAX(lastPostID) lastPostID FROM threads GROUP BY forumID) t ON f.forumID = t.forumID LEFT JOIN posts lp ON t.lastPostID = lp.postID LEFT JOIN users u ON lp.authorID = u.userID".($this->currentForum == 0 || $this->currentForum == 2?' WHERE f.heritage NOT LIKE CONCAT(LPAD(2, '.HERITAGE_PAD.', 0), "%") OR f.forumID IN (2, 10)':'')." ORDER BY LENGTH(f.heritage)");
+			$currentForum = $mongo->forums->findOne(['forumID' => $forumID], ['heritage' => true]);
+			$forumConds = [];
+			$forumConds[] = ['forumID' => ['$in' => $currentForum['heritage']]];
+			if ($forumID == 0) 
+				$forumConds[0]['forumID'] = 0;
+			if (bindec($options&$this::NO_CHILDREN) == 0) 
+				$forumConds[] = ['heritage' => $forumID];
+			$forumConds = sizeof($forumConds) > 1?['$or' => $forumConds]:$forumConds[0];
+			if ($forumID == 0 || $forumID == 2) 
+				$forumConds['gameID'] = null;
+			$forumsR = $mongo->forums->find($forumConds);
 			foreach ($forumsR as $forum) 
 				$this->forumsData[$forum['forumID']] = $forum;
 			if (($this->currentForum == 0 || $this->currentForum == 2) && bindec($options&$this::NO_CHILDREN) == 0) {
-				if ($showPubGames) {
-					$publicGames = $mongo->games->find(array('public' => true), array('forumID' => true));
-					$publicGameForumIDs = array();
-					foreach ($publicGames as $game) 
-						$publicGameForumIDs[] = $game['forumID'];
-					$publicGameForums = $mysql->query("SELECT f.forumID, f.title, f.description, f.forumType, f.parentID, f.heritage, f.`order`, f.gameID, f.threadCount, t.numPosts postCount, t.lastPostID, u.userID, u.username, lp.datePosted FROM forums f LEFT JOIN (SELECT forumID, SUM(postCount) numPosts, MAX(lastPostID) lastPostID FROM threads GROUP BY forumID) t ON f.forumID = t.forumID LEFT JOIN posts lp ON t.lastPostID = lp.postID LEFT JOIN users u ON lp.authorID = u.userID WHERE f.forumID IN (".implode(', ', $publicGameForumIDs).")");
-					foreach ($publicGameForums as $forum) 
-						$this->forumsData[$forum['forumID']] = $forum;
-				}
-				if ($loggedIn) {
-					$userGames = $mongo->games->find(array('retired' => null, 'players' => array('$elemMatch' => array('user.userID' => $currentUser->userID, 'approved' => true))), array('forumID' => true));
-					$userGameForumIDs = array();
-					foreach ($userGames as $game) 
-						$userGameForumIDs[] = $game['forumID'];
-					if (sizeof($userGameForumIDs)) {
-						$userGameForums = $mysql->query("SELECT f.forumID, f.title, f.description, f.forumType, f.parentID, f.heritage, f.`order`, f.gameID, f.threadCount, t.numPosts postCount, t.lastPostID, u.userID, u.username, lp.datePosted FROM forums f INNER JOIN forums p ON f.heritage LIKE CONCAT(p.heritage, '%') LEFT JOIN (SELECT forumID, SUM(postCount) numPosts, MAX(lastPostID) lastPostID FROM threads GROUP BY forumID) t ON f.forumID = t.forumID LEFT JOIN posts lp ON t.lastPostID = lp.postID LEFT JOIN users u ON lp.authorID = u.userID WHERE p.forumID IN (".implode(', ', $userGameForumIDs).") ORDER BY LENGTH(f.heritage)");
-						foreach ($userGameForums as $forum) 
-							$this->forumsData[$forum['forumID']] = $forum;
-					}
-				}
+				$forumConds = ['$or' => []];
+				if ($showPubGames) 
+					$forumConds['$or'][] = ['public' => true];
+				if ($loggedIn) 
+					$forumConds['$or'][] = ['players' => [
+						'$elemMatch' => [
+							'user.userID' => $currentUser->userID,
+							'approved' => true
+						]
+					], 'retired' => null];
+				if (sizeof($forumConds) == 1) 
+					$forumConds = $forumConds['$or'][0];
+				$gameForums = $mongo->games->find($forumConds, ['forumID' => true]);
+				$gameForumIDs = array();
+				foreach ($gameForums as $game) 
+					$gameForumIDs[] = $game['forumID'];
+				$gameForums = $mongo->forums->find(['forumID' => ['$in' => $gameForumIDs]]);
+				foreach ($gameForums as $forum) 
+					$this->forumsData[$forum['forumID']] = $forum;
 			}
 			$permissions = ForumPermissions::getPermissions($currentUser->userID, array_keys($this->forumsData), null, $this->forumsData);
 			foreach ($permissions as $pForumID => $permission)
 				$this->forumsData[$pForumID]['permissions'] = $permission;
-			if (!($options&$this::NO_NEWPOSTS)) 
-				$lastRead = $mysql->query("SELECT f.forumID, unread.markedRead, unread.numUnread newPosts FROM forums f LEFT JOIN (SELECT t.forumID, SUM(t.lastPostID > IFNULL(rdt.lastRead, 0) AND t.lastPostID > IFNULL(crdf.markedRead, 0)) numUnread, MAX(t.lastPostID) latestPost, crdf.markedRead FROM threads t LEFT JOIN forums_readData_threads rdt ON t.threadID = rdt.threadID AND rdt.userID = {$currentUser->userID} LEFT JOIN (SELECT f.forumID, MAX(rdf.markedRead) markedRead FROM forums f LEFT JOIN forums p ON f.heritage LIKE CONCAT(p.heritage, '%') LEFT JOIN forums_readData_forums rdf ON p.forumID = rdf.forumID AND rdf.userID = {$currentUser->userID} GROUP BY f.forumID) crdf ON t.forumID = crdf.forumID GROUP BY t.forumID) unread ON f.forumID = unread.forumID WHERE f.forumID IN (".implode(',', array_keys($this->forumsData)).")");
-			else 
-				$lastRead = $mysql->query("SELECT f.forumID, rdf.markedRead FROM forums f LEFT JOIN forums_readData_forums rdf ON f.forumID = rdf.forumID AND rdf.userID = {$currentUser->userID} WHERE f.forumID IN (".implode(',', array_keys($this->forumsData)).")");
-			$lastRead = $lastRead->fetchAll(PDO::FETCH_GROUP|PDO::FETCH_ASSOC);
-			array_walk($lastRead, function (&$value, $key) { $value = $value[0]; });
-			foreach ($this->forumsData as $forumID => $forumData) {
-				foreach ($lastRead[$forumID] as $key => $value) 
-					$this->forumsData[$forumID][$key] = $value;
+			foreach ($this->forumsData as $forumID => $forumData) 
 				$this->spawnForum($forumID);
-			}
 			foreach (array_keys($this->forumsData) as $forumID) 
 				$this->forums[$forumID]->sortChildren();
 			if ($options&$this::ADMIN_FORUMS) 
 				$this->pruneByPermissions(0, 'admin');
 			else 
 				$this->pruneByPermissions();
+
+			$rForumReadData = $mongo->forumsReadData->find([
+				'userID' => $currentUser->userID,
+				'forumID' => ['$in' => array_keys($this->forums)],
+				'type' => 'forum'
+			], ['forumID' => true, 'markedRead' => true]);
+			foreach ($rForumReadData as $readData) 
+				$this->forums[$readData['forumID']]->markedRead = $readData['markedRead']->sec;
+			$getThreadRD = [];
+			foreach ($this->forums as $forum) {
+				foreach ($forum->getHeritage() as $hForumID) 
+					if ($this->forums[$hForumID]->getMarkedRead() > $forum->getMarkedRead()) 
+						$this->forums[$forum->getForumID()]->markedRead = $this->forums[$hForumID]->getMarkedRead();
+				if ($forum->latestPost->threadID == null || $forum->latestPost->datePosted->sec < $this->forums[$forum->getForumID()]->getMarkedRead()) 
+					$getThreadRD[] = $forum->getForumID();
+			}
+			if (!($options&$this::NO_NEWPOSTS) && sizeof($getThreadRD)) {
+				$rThreadReadData = $mongo->forumsReadData->find([
+					'userID' => $currentUser->userID,
+					'forumID' => ['$in' => $getThreadRD],
+					'type' => 'thread',
+					'lastRead' => ['$gt' => new MongoDate($this->forums[$forumID]->getMarkedRead())]
+				], ['threadID' => true, 'forumID' => true, 'lastRead' => true]);
+				$threadReadData = [];
+				$getThreadData = [];
+				foreach ($rThreadReadData as $thread) {
+					$threadReadData[$thread['threadID']] = $thread;
+					$getThreadData[] = $thread['forumID'];
+				}
+				$rThreadData = $mongo->threads->find([
+					'forumID' => ['$in' => array_keys($getThreadData)],
+					'lastPost.datePosted' => ['$gt' => new MongoDate($this->forums[$forumID]->getMarkedRead())]
+				], ['threadID' => true, 'forumID' => true, 'lastPost' => true]);
+				foreach ($rThreadData as $thread) {
+					if ($this->forums[$thread['forumID']]->getNewPosts()) 
+						continue;
+					if (!isset($threadReadData[$thread['threadID']])) 
+						$this->forums[$thread['forumID']]->setNewPosts(true);
+					elseif ($threadReadData[$thread['threadID']]['lastRead'] < $thread->lastPost->datePosted->sec) 
+						$this->forums[$thread['forumID']]->setNewPosts(true);
+				}
+			}
+				// $lastRead = $mysql->query("SELECT f.forumID, unread.markedRead, unread.numUnread newPosts FROM forums f LEFT JOIN (SELECT t.forumID, SUM(t.lastPostID > IFNULL(rdt.lastRead, 0) AND t.lastPostID > IFNULL(crdf.markedRead, 0)) numUnread, MAX(t.lastPostID) latestPost, crdf.markedRead FROM threads t LEFT JOIN forums_readData_threads rdt ON t.threadID = rdt.threadID AND rdt.userID = {$currentUser->userID} LEFT JOIN (SELECT f.forumID, MAX(rdf.markedRead) markedRead FROM forums f LEFT JOIN forums p ON f.heritage LIKE CONCAT(p.heritage, '%') LEFT JOIN forums_readData_forums rdf ON p.forumID = rdf.forumID AND rdf.userID = {$currentUser->userID} GROUP BY f.forumID) crdf ON t.forumID = crdf.forumID GROUP BY t.forumID) unread ON f.forumID = unread.forumID WHERE f.forumID IN (".implode(',', array_keys($this->forumsData)).")");
 		}
 
 		protected function spawnForum($forumID) {
-			if (isset($this->forums[$forumID])) return null;
+			if (isset($this->forums[$forumID])) 
+				return null;
 
 			$this->forums[$forumID] = new Forum($forumID, $this->forumsData[$forumID]);
-			if ($forumID == 0) return null;
+			if ($forumID == 0) 
+				return null;
 			$parentID = $this->forums[$forumID]->parentID;
-			if (!isset($this->forums[$parentID])) $this->spawnForum($parentID);
+			if (!isset($this->forums[$parentID])) 
+				$this->spawnForum($parentID);
 			$this->forums[$parentID]->setChild($forumID, $this->forums[$forumID]->order);
 		}
 

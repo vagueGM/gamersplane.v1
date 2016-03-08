@@ -26,8 +26,7 @@
 			$heritages = array();
 			if (sizeof($forumsData)) {
 				foreach ($allForumIDs as $forumID) {
-					$heritages[$forumID] = explode('-', $forumsData[$forumID]['heritage']);
-					array_walk($heritages[$forumID], function (&$value, $key) { $value = intval($value); });
+					$heritages[$forumID] = $forumsData[$forumID]['heritage'];
 					$allForumIDs = array_merge($allForumIDs, $heritages[$forumID]);
 				}
 			} else {
