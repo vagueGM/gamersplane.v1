@@ -99,7 +99,7 @@
 					$getThreadData[] = $thread['forumID'];
 				}
 				$rThreadData = $mongo->threads->find([
-					'forumID' => ['$in' => array_keys($getThreadData)],
+					'forumID' => ['$in' => $getThreadData],
 					'lastPost.datePosted' => ['$gt' => new MongoDate($this->forums[$forumID]->getMarkedRead())]
 				], ['threadID' => true, 'forumID' => true, 'lastPost' => true]);
 				foreach ($rThreadData as $thread) {
@@ -107,7 +107,7 @@
 						continue;
 					if (!isset($threadReadData[$thread['threadID']])) 
 						$this->forums[$thread['forumID']]->setNewPosts(true);
-					elseif ($threadReadData[$thread['threadID']]['lastRead'] < $thread->lastPost->datePosted->sec) 
+					elseif ($threadReadData[$thread['threadID']]['lastRead']->sec < $thread['lastPost']['datePosted']->sec) 
 						$this->forums[$thread['forumID']]->setNewPosts(true);
 				}
 			}
