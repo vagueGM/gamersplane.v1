@@ -48,7 +48,7 @@
 							'approved' => true
 						]
 					], 'retired' => null];
-				if (sizeof($forumConds) == 1) 
+				if (sizeof($forumConds['$or']) == 1) 
 					$forumConds = $forumConds['$or'][0];
 				$gameForums = $mongo->games->find($forumConds, ['forumID' => true]);
 				$gameForumIDs = array();
