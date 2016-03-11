@@ -66,6 +66,6 @@ module.exports = function(grunt) {
 		}
 	});
 
-	grunt.registerTask('default', ['less:dev']);
+	grunt.registerTask('less', ['less:dev']);
 	grunt.registerTask('release', ['clean:css', 'less:prod', 'cssmin', 'uglify']);
 };
