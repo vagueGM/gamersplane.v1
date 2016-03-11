@@ -219,31 +219,34 @@
 				$hidden = false;
 ?>
 					<h4>Deck Draws</h4>
+<?				foreach ($post->draws as $draw) { ?>
+					<div><?=printReady($draw['reason'])?></div>
+<?					if ($post->author->userID == $currentUser->userID) { ?>
+						<form method="post" action="/forums/process/cardVis/">
+							<input type="hidden" name="drawID" value="<?=$draw['_id']?>">
+<?						foreach ($draw['draw'] as $key => $cardDrawn) { ?>
+								<button type="submit" name="position" value="<?=$key?>">
+									<?=getCardImg($cardDrawn['card'], $draw['type'], 'mid')?>
+<?							$visText = $cardDrawn['visible']?'Visible':'Hidden'; ?>
+									<div alt="<?=$visText?>" title="<?=$visText?>" class="eyeIcon<?=$visText == 'Hidden'?' hidden':''?>"></div>
+								</button>
+<?						} ?>
+						</form>
+<?					} else { ?>
+						<div>
 <?
-				foreach ($post->draws as $draw) {
-					echo "\t\t\t\t\t<div>".printReady($draw['reason'])."</div>\n";
-					if ($post->author->userID == $currentUser->userID) {
-						echo "\t\t\t\t\t<form method=\"post\" action=\"/forums/process/cardVis/\">\n";
-						echo "\t\t\t\t\t\t<input type=\"hidden\" name=\"drawID\" value=\"{$draw['drawID']}\">\n";
-						$cardsDrawn = explode('~', $draw['cardsDrawn']);
-						$count = 0;
-						foreach ($cardsDrawn as $cardDrawn) {
-							echo "\t\t\t\t\t\t<button type=\"submit\" name=\"position\" value=\"$count\">\n";
-							echo "\t\t\t\t\t\t\t".getCardImg($cardDrawn, $draw['type'], 'mid')."\n";
-							$visText = $draw['reveals'][$count++]?'Visible':'Hidden';
-							echo "\t\t\t\t\t\t\t<div alt=\"{$visText}\" title=\"{$visText}\" class=\"eyeIcon".($visText == 'Hidden'?' hidden':'')."\"></div>\n";
-							echo "\t\t\t\t\t\t</button>\n";
+						foreach ($draw['draw'] as $key => $cardDrawn) {
+							if ($cardDrawn['visible']) {
+?>
+							<?=getCardImg($cardDrawn['card'], $draw['type'], 'mid')?>
+<?							} else { ?>
+							<img src="/images/tools/cards/back.png" alt="Hidden Card" title="Hidden Card" class="cardBack mid">
+<?
+							}
 						}
-						echo "\t\t\t\t\t</form>\n";
-					} else {
-						echo "\t\t\t\t\t<div>\n";
-						$cardsDrawn = explode('~', $draw['cardsDrawn']);
-						$count = 0;
-						foreach ($cardsDrawn as $cardDrawn) {
-							if ($draw['reveals'][$count++] == 1) echo "\t\t\t\t\t\t".getCardImg($cardDrawn, $draw['type'], 'mid')."\n";
-							else echo "\t\t\t\t\t\t<img src=\"/images/tools/cards/back.png\" alt=\"Hidden Card\" title=\"Hidden Card\" class=\"cardBack mid\">\n";
-						}
-						echo "\t\t\t\t\t</div>\n";
+?>
+						</div>
+<?
 					}
 				}
 	 		}

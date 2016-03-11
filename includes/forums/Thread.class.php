@@ -3,15 +3,12 @@
 		protected $threadID;
 		protected $forumID;
 		protected $title;
-		protected $authorID;
-		protected $authorUsername;
+		protected $author;
 		protected $datePosted;
 		protected $states = array('sticky' => false, 'locked' => false);
 		protected $allowRolls = false;
 		protected $allowDraws = false;
 		protected $postCount = 0;
-
-		protected $firstPostID = 0;
 		protected $lastPost = null;
 		protected $lastRead = 0;
 
@@ -22,21 +19,19 @@
 		
 		public function __construct($loadData = null) {
 			$this->poll = new ForumPoll();
-			
-			if ($loadData == null) return true;
 
-			if (!isset($loadData['threadID'], $loadData['title'])) throw new Exception('Need more thread info');
+			if ($loadData == null) 
+				return true;
+
+			if (!isset($loadData['threadID'], $loadData['title'])) 
+				throw new Exception('Need more thread info');
 			foreach ($loadData as $key => $value) 
-				if (property_exists($this, $key)) $this->$key = $loadData[$key];
+				if (property_exists($this, $key)) 
+					$this->$key = $loadData[$key];
+			$this->datePosted = $this->datePosted->sec;
 			$this->states['sticky'] = $loadData['sticky'];
 			$this->states['locked'] = $loadData['locked'];
-			if (isset($loadData['lp_postID'], $loadData['lp_authorID'], $loadData['lp_username'], $loadData['lp_datePosted'])) {
-				$this->lastPost = new stdClass();
-				$this->lastPost->postID = $loadData['lp_postID'];
-				$this->lastPost->authorID = $loadData['lp_authorID'];
-				$this->lastPost->username = $loadData['lp_username'];
-				$this->lastPost->datePosted = $loadData['lp_datePosted'];
-			}
+			$this->lastRead = $this->lastRead->sec;
 		}
 
 		public function toggleValue($key) {
@@ -54,11 +49,11 @@
 			if (property_exists($this, $key)) $this->$key = $value;
 		}
 
-		public function getStates($key = null, $int = false) {
-			if (array_key_exists($key, $this->states)) {
-				if ($int) return $this->states[$key]?1:0;
+		public function getStates($key = null) {
+			if (array_key_exists($key, $this->states)) 
 				return $this->states[$key];
-			} else return $this->states;
+			else 
+				return $this->states;
 		}
 
 		public function setState($key, $value) {
@@ -69,8 +64,7 @@
 			if (is_bool($value)) $this->allowRolls = $value;
 		}
 
-		public function getAllowRolls($int = false) {
-			if ($int) return $this->allowRolls?1:0;
+		public function getAllowRolls() {
 			return $this->allowRolls;
 		}
 
@@ -78,8 +72,7 @@
 			if (is_bool($value)) $this->allowDraws = $value;
 		}
 
-		public function getAllowDraws($int = false) {
-			if ($int) return $this->allowDraws?1:0;
+		public function getAllowDraws() {
 			return $this->allowDraws;
 		}
 
@@ -88,8 +81,8 @@
 		}
 
 		public function getLastPost($key = null) {
-			if (property_exists($this->lastPost, $key)) 
-				return $this->lastPost->$key;
+			if (array_key_exists($key, $this->lastPost)) 
+				return $this->lastPost[$key];
 			else 
 				return $this->lastPost;
 		}
@@ -109,21 +102,26 @@
 			if (sizeof($this->posts)) 
 				return $this->posts;
 
-			global $loggedIn, $currentUser, $mysql;
+			global $loggedIn, $currentUser, $mysql, $mongo;
 
-			if ($page > ceil($this->postCount / PAGINATE_PER_PAGE)) $page = ceil($this->postCount / PAGINATE_PER_PAGE);
+			if ($page > ceil($this->postCount / PAGINATE_PER_PAGE)) 
+				$page = ceil($this->postCount / PAGINATE_PER_PAGE);
 			$start = ($page - 1) * PAGINATE_PER_PAGE;
-			$posts = $mysql->query("SELECT p.postID, p.threadID, p.title, u.userID, u.username, um.metaValue avatarExt, u.lastActivity, p.message, p.postAs, p.datePosted, p.lastEdit, p.timesEdited FROM posts p LEFT JOIN users u ON p.authorID = u.userID LEFT JOIN usermeta um ON u.userID = um.userID AND um.metaKey = 'avatarExt' WHERE p.threadID = {$this->threadID} ORDER BY p.datePosted LIMIT {$start}, ".PAGINATE_PER_PAGE);
+			$posts = $mongo->posts->find(['threadID' => $this->threadID])->sort(['datePosted' => 1])->skip($start)->limit(PAGINATE_PER_PAGE);
+			// $posts = $mysql->query("SELECT p.postID, p.threadID, p.title, u.userID, u.username, um.metaValue avatarExt, u.lastActivity, p.message, p.postAs, p.datePosted, p.lastEdit, p.timesEdited FROM posts p LEFT JOIN users u ON p.authorID = u.userID LEFT JOIN usermeta um ON u.userID = um.userID AND um.metaKey = 'avatarExt' WHERE p.threadID = {$this->threadID} ORDER BY p.datePosted LIMIT {$start}, ".PAGINATE_PER_PAGE);
+			$getUsers = [];
 			foreach ($posts as $post) 
-				$this->posts[$post['postID']] = new Post($post);
-
-			$rolls = $mysql->query("SELECT postID, rollID, type, reason, roll, indivRolls, results, visibility, extras FROM rolls WHERE postID IN (".implode(',', array_keys($this->posts)).") ORDER BY rollID");
-			foreach ($rolls as $rollInfo) 
-				$this->posts[$rollInfo['postID']]->loadRoll($rollInfo);
-			
-			$draws = $mysql->query("SELECT postID, drawID, deckID, type, cardsDrawn, reveals, reason FROM deckDraws WHERE postID IN (".implode(',', array_keys($this->posts)).") ORDER BY drawID");
-			foreach ($draws as $drawInfo) 
-				$this->posts[$drawInfo['postID']]->addDraw($drawInfo['deckID'], $drawInfo);
+				$getUsers[] = $post['authorID'];
+			$rUsers = $mysql->query("SELECT u.userID, u.username, um.metaValue avatarExt, u.lastActivity FROM users u INNER JOIN usermeta um ON u.userID = um.userID AND um.metaKey = 'avatarExt' WHERE u.userID IN (".implode(',', $getUsers).")");
+			$users = [];
+			foreach ($rUsers as $user) 
+				$users[$user['userID']] = [
+					'username' => $user['username'],
+					'avatarExt' => $user['avatarExt'],
+					'lastActivity' => time($user['lastActivity'])
+				];
+			foreach ($posts as $post) 
+				$this->posts[$post['postID']] = new Post(array_merge($post, ['author' => $users[$post['authorID']]]));
 
 			return $this->posts;
 		}

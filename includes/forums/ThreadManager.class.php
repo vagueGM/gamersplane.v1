@@ -7,14 +7,15 @@
 
 		public function __construct($threadID = null, $forumID = null) {
 			if (intval($threadID))	{
-				global $mysql, $currentUser;
+				global $mongo, $currentUser;
 
 				$this->threadID = intval($threadID);
-				$thread = $mysql->query("SELECT t.threadID, t.forumID, t.locked, t.sticky, t.allowRolls, t.allowDraws, fp.title, fp.authorID, tAuthor.username authorUsername, fp.datePosted, t.firstPostID, lp.postID lp_postID, lp.authorID lp_authorID, lAuthor.username lp_username, lp.datePosted lp_datePosted, t.postCount, IFNULL(rd.lastRead, 0) lastRead FROM threads t INNER JOIN posts fp ON t.firstPostID = fp.postID INNER JOIN users tAuthor ON fp.authorID = tAuthor.userID LEFT JOIN posts lp ON t.lastPostID = lp.postID LEFT JOIN users lAuthor ON lp.authorID = lAuthor.userID LEFT JOIN forums_readData_threads rd ON t.threadID = rd.threadID AND rd.userID = {$currentUser->userID} WHERE t.threadID = {$this->threadID} LIMIT 1");
-				$this->thread = $thread->fetch();
-	//			throw new Exception('No thread');
+				$this->thread = $mongo->threads->findOne(['threadID' => $threadID]);
 				if (!$this->thread) 
 					return false;
+				$lastRead = $mongo->forumsReadData->findOne(['userID' => $currentUser->userID, 'threadID' => $this->threadID], ['lastRead' => true]);
+				if ($lastRead) 
+					$this->thread['lastRead'] = $lastRead['lastRead'];
 				$this->thread = new Thread($this->thread);
 
 				$this->forumManager = new ForumManager($this->thread->forumID, ForumManager::NO_CHILDREN|ForumManager::NO_NEWPOSTS);
@@ -76,19 +77,18 @@
 		}
 
 		public function setPage() {
-			global $mysql;
+			global $mongo;
 
 			if (isset($_GET['view']) && $_GET['view'] == 'newPost') {
-				$numPrevPosts = $mysql->query("SELECT COUNT(postID) numPosts FROM posts WHERE threadID = {$this->threadID} AND postID <= ".$this->getThreadLastRead());
-				$numPrevPosts = $numPrevPosts->fetchColumn() + 1;
+				$numPrevPosts = $mongo->posts->find(['threadID' => $this->threadID, 'datePosted' => ['$lt' => new MongoDate($this->getThreadLastRead())]])->count() + 1;
 				$page = $numPrevPosts?ceil($numPrevPosts / PAGINATE_PER_PAGE):1;
 			} elseif (isset($_GET['view']) && $_GET['view'] == 'lastPost') {
 				$numPrevPosts = $this->getThreadProperty('postCount');
 				$page = $numPrevPosts?ceil($numPrevPosts / PAGINATE_PER_PAGE):1;
 			} elseif (isset($_GET['p']) && intval($_GET['p'])) {
-				$post = intval($_GET['p']);
-				$numPrevPosts = $mysql->query("SELECT COUNT(postID) FROM posts WHERE threadID = {$this->threadID} AND postID <= {$post}");
-				$numPrevPosts = $numPrevPosts->fetchColumn();
+				$postID = intval($_GET['p']);
+				$datePosted = $mongo->posts->findOne(['postID' => $postID], ['datePosted']);
+				$numPrevPosts = $mongo->posts->find(['threadID' => $this->threadID, 'datePosted' => ['$lt' => $datePosted['datePosted']]])->count();
 				$page = $numPrevPosts?ceil($numPrevPosts / PAGINATE_PER_PAGE):1;
 			} else 
 				$page = intval($_GET['page']);
@@ -96,13 +96,11 @@
 		}
 
 		public function getPosts() {
-			global $mysql;
-
 			return $this->thread->getPosts($this->page);
 		}
 
 		public function getKeyPost() {
-			global $mysql;
+			global $mongo;
 
 			$posts = $this->thread->getPosts($this->page);
 			$checkFor = '';
@@ -111,12 +109,12 @@
 			elseif (isset($_GET['p']) && intval($_GET['p'])) 
 				$checkFor = intval($_GET['p']);
 			elseif ($this->page != 1) 
-				return $mysql->query("SELECT message FROM posts WHERE postID = {$this->thread->firstPostID}")->fetch();
+				return $mongo->posts->findOne(['postID' => $this->thread->firstPostID], ['message' => true])['message'];
 			else 
 				return $posts[$this->thread->firstPostID];
 
 			foreach ($posts as $post) {
-				if ($checkFor == 'newPost' && ($post->getPostID() > $this->getThreadLastRead() || $this->thread->getLastPost('postID') == $post->getPostID())) 
+				if ($checkFor == 'newPost' && ($post->getDatePosted() > $this->getThreadLastRead() || $this->thread->getLastPost('postID') == $post->getPostID())) 
 					return $post;
 				elseif ($post->getPostID == $checkFor) 
 					return $post;
@@ -124,10 +122,10 @@
 		}
 
 		public function updatePostCount() {
-			global $mysql;
+			global $mongo;
 
-			$count = $mysql->query("SELECT COUNT(postID) FROM posts WHERE threadID = {$this->threadID}")->fetchColumn();
-			$mysql->query("UPDATE threads SET postCount = {$count} WHERE threadID = {$this->threadID} LIMIT 1");
+			$count = $mongo->posts->find(['threadID' => $this->threadID], ['_id' => true])->count();
+			$mongo->threads->update(['threadID' => $this->threadID], ['$set' => ['postCount' => $count]]);
 		}
 
 		public function getPoll() {
@@ -157,10 +155,17 @@
 		public function saveThread($post) {
 			global $mysql;
 
+			$threadData = [
+				'threadID' => $this->threadID?$this->threadID:mongo_getNextSequence('threadID'),
+				'forumID' => $this->thread->forumID,
+				'sticky' => $this->thread->getStates('sticky'),
+				'locked' => $this->thread->getStates('locked'),
+				'allowRolls' => $this->thread->getAllowRolls(),
+				'allowDraws' => $this->thread->getAllowDraws(),
+				'postCount' => 1
+			];
 			if ($this->threadID == null) {
-				$mysql->query("INSERT INTO threads SET forumID = {$this->thread->forumID}, sticky = ".$this->thread->getStates('sticky', true).", locked = ".$this->thread->getStates('locked', true).", allowRolls = ".$this->thread->getAllowRolls(true).", allowDraws = ".$this->thread->getAllowDraws(true).", postCount = 1");
-				$this->threadID = $mysql->lastInsertId();
-
+				$threadData['title'] = $post->getTitle();
 				$post->setThreadID($this->threadID);
 				$postID = $post->savePost();
 

@@ -45,39 +45,10 @@
 		}
 
 		function forumLoad($rollData) {
-			$this->rollID = $rollData['rollID'];
 			$this->reason = $rollData['reason'];
-			$this->parseRolls($rollData['roll']);
-			$rollData['indivRolls'] = unserialize($rollData['indivRolls']);
-			$rollData['results'] = unserialize($rollData['results']);
-			foreach ($rollData['indivRolls'] as $key => $roll) {
-				$this->rolls[$key]['indivRolls'] = $roll;
-				$this->rolls[$key]['result'] = $rollData['results'][$key];
-			}
+			$this->rolls = $rollData['rolls'];
 			$this->setVisibility($rollData['visibility']);
-			$rollData['extras'] = unserialize($rollData['extras']);
-			$this->rerollAces = $rollData['extras']['ra'];
-		}
-
-		function forumSave($postID) {
-			global $mysql;
-
-			if (sizeof($this->rolls) == 0) return false;
-
-			$rolls = $results = $indivRolls = array();
-			foreach ($this->rolls as $roll) {
-				$rolls[] = $roll['string'];
-				$results[] = $roll['result'];
-				$indivRolls[] = $roll['indivRolls'];
-			}
-			$addRoll = $mysql->prepare("INSERT INTO rolls SET postID = $postID, type = 'basic', reason = :reason, roll = :roll, indivRolls = :indivRolls, results = :results, visibility = :visibility, extras = :extras");
-			$addRoll->bindValue(':reason', $this->reason);
-			$addRoll->bindValue(':roll', implode(',', $rolls));
-			$addRoll->bindValue(':indivRolls', serialize($indivRolls));
-			$addRoll->bindValue(':results', serialize($results));
-			$addRoll->bindValue(':visibility', $this->visibility);
-			$addRoll->bindValue(':extras', serialize(array('ra' => $this->rerollAces)));
-			$addRoll->execute();
+			$this->rerollAces = $rollData['rerollAces'];
 		}
 
 		function getResults() {
@@ -91,25 +62,35 @@
 				$rollStrings = $rollValues = array();
 				$multipleRolls = sizeof($this->rolls) > 1?true:false;
 				foreach ($this->rolls as $count => $roll) {
-					$rollStrings[] = $roll['string'];
-					$rollValues[$count] = '<p class="rollResults">'.($this->visibility != 0 && $showAll?'<span class="hidden">':'').($multipleRolls?"{$roll['string']} - ":'').'( ';
+					$rollStrings[] = $roll['roll'];
+					$rollValues[$count] = '<p class="rollResults">'.($this->visibility != 0 && $showAll?'<span class="hidden">':'').($multipleRolls?"{$roll['roll']} - ":'').'( ';
+					$rolls = array();
 					$results = array();
-					foreach ($roll['indivRolls'] as $key => $result) {
-						if (is_array($result))  {
-							$results[$key] = '[ '.implode(', ', $result).' ]';
+					foreach ($roll['results'] as $key => $result) {
+						if (sizeof($result) > 1) {
+							$rolls[$key] = '[ '.implode(', ', $result).' ]';
+							$results[$key] = array_sum($result);
+						} else {
+							$rolls[$key] = $result;
+							$results[$key] = $result;
 						}
-						else $results[$key] = $result;
 					}
-					$rollValues[$count] .= implode(', ', $results).' )';
-					if ($roll['modifier'] < 0) $rollValues[$count] .= ' - '.abs($roll['modifier']);
-					elseif ($roll['modifier'] > 0) $rollValues[$count] .= ' + '.$roll['modifier'];
-					$rollValues[$count] .= ' = '.$roll['result'].($this->visibility != 0?'</span>':'').'</p>';
+					$rollValues[$count] .= implode(', ', $rolls).' )';
+					if ($roll['modifier'] < 0) 
+						$rollValues[$count] .= ' - '.abs($roll['modifier']);
+					elseif ($roll['modifier'] > 0) 
+						$rollValues[$count] .= ' + '.$roll['modifier'];
+					$rollValues[$count] .= ' = '.array_sum($results).($this->visibility != 0?'</span>':'').'</p>';
 				}
 				echo '<p class="rollString">';
 				echo ($showAll && $this->visibility > 0)?'<span class="hidden">'.$this->visText[$this->visibility].'</span> ':'';
-				if ($this->visibility <= 2) echo $this->reason;
-				elseif ($showAll) { echo '<span class="hidden">'.($this->reason != ''?"{$this->reason}":''); $hidden = true; }
-				else echo 'Secret Roll';
+				if ($this->visibility <= 2) 
+					echo $this->reason;
+				elseif ($showAll) {
+					echo '<span class="hidden">'.($this->reason != ''?"{$this->reason}":'');
+					$hidden = true;
+				} else 
+					echo 'Secret Roll';
 				if ($this->visibility > 1 && $showAll && !$hidden) {
 					echo '<span class="hidden">';
 					$hidden = true;

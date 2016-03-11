@@ -5,7 +5,6 @@
 		const VIS_HIDE_ROLL_RESULT = 2;
 		const VIS_HIDE_ALL = 3;
 
-		protected $rollID = NULL;
 		protected $rolls = array();
 		protected $dice = array();
 		protected $reason = '';
@@ -18,10 +17,6 @@
 
 		abstract function roll();
 
-		function getRollID() {
-			return $this->rollID;
-		}
-
 		function setReason($reason) {
 			$this->reason = $reason;
 		}
@@ -31,6 +26,9 @@
 		}
 
 		function setVisibility($visibility) {
+			$visibility = (int) $visibility;
+			if ($visibility < 0 || $visibility > 3) 
+				$visibility = 0;
 			$this->visibility = $visibility;
 		}
 		
@@ -44,6 +42,6 @@
 			return $this->rolls;
 		}
 
-		abstract function showHTML($showAll = FALSE);
+		abstract function showHTML($showAll = false);
 	}
 ?>

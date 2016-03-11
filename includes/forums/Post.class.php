@@ -17,24 +17,43 @@
 		protected $edited = false;
 		
 		public function __construct($loadData = null) {
-			if ($loadData == null) return true;
+			if ($loadData == null) 
+				return true;
 
 			if ((int) $loadData == $loadData) {
-				global $mysql;
+				global $mysql, $mongo;
 
-				$loadData = $mysql->query("SELECT p.postID, p.threadID, p.title, u.userID, u.username, um.metaValue avatarExt, u.lastActivity, p.message, p.postAs, p.datePosted, p.lastEdit, p.timesEdited FROM posts p LEFT JOIN users u ON p.authorID = u.userID LEFT JOIN usermeta um ON u.userID = um.userID AND um.metaKey = 'avatarExt' WHERE p.postID = {$loadData}")->fetch();
+				$loadData = $mongo->posts->findOne(['postID' => $loadData]);
+				$user = $mysql->query("SELECT u.userID, u.username, um.metaValue avatarExt, u.lastActivity FROM users u LEFT JOIN usermeta um ON u.userID = um.userID AND um.metaKey = 'avatarExt' WHERE u.userID = {$loadData}")->fetch();
+				$loadData = array_merge($loadData, ['author' => $user]);
 			}
 			if (is_array($loadData)) {
 				foreach (get_object_vars($this) as $key => $value) {
-					if (in_array($key, array('author', 'rolls', 'draws', 'modified', 'edited'))) continue;
-					if (!array_key_exists($key, $loadData)) continue;//throw new Exception('Missing data for '.$this->forumID.': '.$key);
+					if (in_array($key, array('authorID', 'rolls', 'draws', 'modified', 'edited'))) 
+						continue;
+					if (!array_key_exists($key, $loadData)) 
+						continue;//throw new Exception('Missing data for '.$this->forumID.': '.$key);
 					$this->$key = $loadData[$key];
 				}
+				$this->datePosted = $this->datePosted->sec;
+				$this->lastEdit = $this->lastEdit->sec;
 				$this->author = new stdClass();
-				$this->author->userID = $loadData['userID'];
-				$this->author->username = $loadData['username'];
-				$this->author->avatarExt = $loadData['avatarExt'];
-				$this->author->lastActivity = $loadData['lastActivity'];
+				$this->author->userID = $loadData['authorID'];
+				$this->author->username = $loadData['author']['username'];
+				$this->author->avatarExt = $loadData['author']['avatarExt'];
+				$this->author->lastActivity = $loadData['author']['lastActivity'];
+
+				if (sizeof($loadData['rolls'])) {
+					foreach ($loadData['rolls'] as $roll) {
+						$rollObj = RollFactory::getRoll($roll['type']);
+						$rollObj->forumLoad($roll);
+						$this->rolls[] = $rollObj;
+					}
+				}
+
+				if (sizeof($loadData['draws'])) 
+					foreach ($loadData['draws'] as $draw) 
+						$this->draws[$draw['deckID']] = $draw;
 			}
 		}
 
@@ -112,8 +131,10 @@
 		}
 
 		public function getDatePosted($format = null) {
-			if ($format != null) return date($format, strtotime($this->datePosted));
-			else return $this->datePosted;
+			if ($format != null) 
+				return date($format, strtotime($this->datePosted));
+			else 
+				return $this->datePosted;
 		}
 
 		public function getLastEdit() {
@@ -126,16 +147,6 @@
 
 		public function addRollObj($rollObj) {
 			$this->rolls[] = $rollObj;
-		}
-
-		public function loadRoll($rollInfo) {
-			$rollObj = RollFactory::getRoll($rollInfo['type']);
-			$rollObj->forumLoad($rollInfo);
-			$this->rolls[] = $rollObj;
-		}
-
-		public function addDraw($deckID, $drawInfo) {
-			$this->draws[$deckID] = $drawInfo;
 		}
 
 		public function updateEdited() {

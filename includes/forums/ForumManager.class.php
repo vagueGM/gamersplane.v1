@@ -10,7 +10,8 @@
 		const ADMIN_FORUMS = 4;
 
 		public function __construct($forumID, $options = 0) {
-			global $mysql, $loggedIn, $currentUser, $mongo;
+			global $loggedIn, $currentUser, $mongo;
+			$forumID = (int) $forumID;
 
 			if ($loggedIn) {
 				$showPubGames = $currentUser->showPubGames;
@@ -111,7 +112,6 @@
 						$this->forums[$thread['forumID']]->setNewPosts(true);
 				}
 			}
-				// $lastRead = $mysql->query("SELECT f.forumID, unread.markedRead, unread.numUnread newPosts FROM forums f LEFT JOIN (SELECT t.forumID, SUM(t.lastPostID > IFNULL(rdt.lastRead, 0) AND t.lastPostID > IFNULL(crdf.markedRead, 0)) numUnread, MAX(t.lastPostID) latestPost, crdf.markedRead FROM threads t LEFT JOIN forums_readData_threads rdt ON t.threadID = rdt.threadID AND rdt.userID = {$currentUser->userID} LEFT JOIN (SELECT f.forumID, MAX(rdf.markedRead) markedRead FROM forums f LEFT JOIN forums p ON f.heritage LIKE CONCAT(p.heritage, '%') LEFT JOIN forums_readData_forums rdf ON p.forumID = rdf.forumID AND rdf.userID = {$currentUser->userID} GROUP BY f.forumID) crdf ON t.forumID = crdf.forumID GROUP BY t.forumID) unread ON f.forumID = unread.forumID WHERE f.forumID IN (".implode(',', array_keys($this->forumsData)).")");
 		}
 
 		protected function spawnForum($forumID) {
