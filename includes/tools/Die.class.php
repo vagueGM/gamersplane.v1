@@ -13,5 +13,9 @@
 		}
 		
 		abstract function roll();
+
+		function getResult() {
+			return $this->result;
+		}
 	}
 ?>

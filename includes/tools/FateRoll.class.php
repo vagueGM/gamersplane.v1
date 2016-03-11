@@ -9,22 +9,20 @@
 
 		function newRoll($numDice) {
 			$numDice = intval($numDice);
-			if ($numDice <= 0) return false;
-			else $this->roll = $numDice;
+			if ($numDice <= 0) 
+				return false;
+			else 
+				$this->roll = $numDice;
 		}
 
 		function roll() {
-			for ($count = 0; $count < $this->roll; $count++) $this->rolls[] = $this->die->roll() - 2;
+			for ($count = 0; $count < $this->roll; $count++) 
+				$this->rolls[] = $this->die->roll() - 2;
 		}
 
 		function forumLoad($rollData) {
-			$this->rollID = $rollData['rollID'];
 			$this->reason = $rollData['reason'];
-			$this->newRoll($rollData['roll']);
-			$rollData['indivRolls'] = unserialize($rollData['indivRolls']);
-			foreach ($rollData['indivRolls'] as $key => $roll) {
-				$this->rolls[$key] = $roll;
-			}
+			$this->rolls = $rollData['rolls'];
 			$this->setVisibility($rollData['visibility']);
 		}
 
@@ -50,16 +48,21 @@
 				$sum = 0;
 				echo '<p class="rollString">';
 				echo ($showAll && $this->visibility > 0)?'<span class="hidden">'.$this->visText[$this->visibility].'</span> ':'';
-				if ($this->visibility <= 2) echo $this->reason;
-				elseif ($showAll) { echo '<span class="hidden">'.($this->reason != ''?"{$this->reason}":''); $hidden = true; }
-				else echo 'Secret Roll';
+				if ($this->visibility <= 2) 
+					echo $this->reason;
+				elseif ($showAll) {
+					echo '<span class="hidden">'.($this->reason != ''?"{$this->reason}":'');
+					$hidden = true;
+				} else 
+					echo 'Secret Roll';
 				echo $hidden?'</span>':'';
 				echo '</p>';
 				if ($this->visibility <= 1 || $showAll) {
 					echo '<div class="rollResults">';
-					foreach ($this->rolls as $count => $roll) {
+					foreach ($this->rolls as $roll) {
 						echo "<div class=\"fate_dice {$this->sMap[$roll]}\">";
-						if ($this->visibility == 0 || $showAll) echo '<div></div>';
+						if ($this->visibility == 0 || $showAll) 
+							echo '<div></div>';
 						echo '</div>';
 						$totals[$roll]++;
 						$sum += $roll;
@@ -68,9 +71,11 @@
 				}
 				if ($this->visibility == 0 || $showAll) {
 					echo '<p>';
-					if ($this->visibility != 0) echo '<span class="hidden">';
+					if ($this->visibility != 0) 
+						echo '<span class="hidden">';
 					echo "{$totals[1]} Positive, {$totals[0]} Blank, {$totals[-1]} Negative - Total: ".showSign($sum);
-					if ($this->visibility != 0) echo '</span>';
+					if ($this->visibility != 0) 
+						echo '</span>';
 					echo '</p>';
 				}
 				echo '</div>';

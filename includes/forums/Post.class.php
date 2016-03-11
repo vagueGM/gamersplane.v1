@@ -23,8 +23,8 @@
 			if ((int) $loadData == $loadData) {
 				global $mysql, $mongo;
 
-				$loadData = $mongo->posts->findOne(['postID' => $loadData]);
-				$user = $mysql->query("SELECT u.userID, u.username, um.metaValue avatarExt, u.lastActivity FROM users u LEFT JOIN usermeta um ON u.userID = um.userID AND um.metaKey = 'avatarExt' WHERE u.userID = {$loadData}")->fetch();
+				$loadData = $mongo->posts->findOne(['postID' => (int) $loadData]);
+				$user = $mysql->query("SELECT u.userID, u.username, um.metaValue avatarExt, u.lastActivity FROM users u LEFT JOIN usermeta um ON u.userID = um.userID AND um.metaKey = 'avatarExt' WHERE u.userID = {$loadData['authorID']}")->fetch();
 				$loadData = array_merge($loadData, ['author' => $user]);
 			}
 			if (is_array($loadData)) {

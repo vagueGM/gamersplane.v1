@@ -12,7 +12,8 @@
 			);
 
 		public function __construct($type) {
-			if (!array_key_exists($type, $this->dice)) throw new Exception('Invalid type');
+			if (!array_key_exists($type, $this->dice)) 
+				throw new Exception('Invalid type');
 			parent::__construct(sizeof($this->dice[$type]));
 			$this->type = $type;
 		}
@@ -21,10 +22,19 @@
 			return $result;
 		}
 
+		public function getType() {
+			return $this->type;
+		}
+
 		public function roll() {
 			$this->result = $this->dice[$this->type][mt_rand(1, $this->sides)];
 
 			return $this->result;
+		}
+
+		public function setResult($roll) {
+			$this->result = $this->dice[$this->type][$roll];
+			return true;
 		}
 	}
 ?>
