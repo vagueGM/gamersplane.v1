@@ -60,6 +60,17 @@
 		margin-bottom: .75em;
 		color: #666;
 		font-size: 1.1em;
+
+		a::after {
+			content: '>';
+			display: inline-block;
+			padding: 0 5px;
+			color: #000;
+		}
+
+		a:last-child::after {
+			content: none;
+		}
 	}
 
 	#topLinks > div > div {
@@ -223,7 +234,7 @@
 		width: 180px;
 		text-align: center;
 
-		span {
+		.datePosted {
 			font-size: .85em;
 		}
 	}

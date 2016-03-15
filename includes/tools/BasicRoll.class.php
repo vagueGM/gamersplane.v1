@@ -17,8 +17,10 @@
 						$roll[1] = 1;
 						$roll[0] = '1'.$roll[0];
 					}
-					if (!isset($roll[3])) $roll[3] = 0;
-					else $roll[3] = intval($roll[3]);
+					if (!isset($roll[3])) 
+						$roll[3] = 0;
+					else 
+						$roll[3] = intval($roll[3]);
 
 					$this->rolls[] = array('string' => $roll[0], 'number' => $roll[1], 'sides' => $roll[2], 'modifier' => $roll[3], 'indivRolls' => array(), 'result' => 0);
 					$this->dice[$roll[2]] = new BasicDie($roll[2]);
@@ -49,6 +51,16 @@
 			$this->rolls = $rollData['rolls'];
 			$this->setVisibility($rollData['visibility']);
 			$this->rerollAces = $rollData['rerollAces'];
+		}
+
+		function mongoFormat() {
+			return [
+				'type' => 'basic',
+				'reason' => $this->reason,
+				'rolls' => $this->rolls,
+				'visibility' => $this->visibility,
+				'rerollAces' => $this->rerollAces
+			];
 		}
 
 		function getResults() {

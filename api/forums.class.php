@@ -10,6 +10,8 @@
 				$subcontroller = new forumACP();
 			} elseif ($pathOptions[0] == 'getForum') 
 				$this->getForum();
+			elseif ($pathOptions[0] == 'getThreads') 
+				$this->getThreads();
 			elseif ($pathOptions[0] == 'getSubscriptions') 
 				$this->getSubscriptions();
 			elseif ($pathOptions[0] == 'unsubscribe') 
@@ -21,8 +23,41 @@
 		public function getForum() {
 			$forumID = (int) $_POST['forumID'];
 			$forumManager = new ForumManager($forumID);
+			$forums = $forumManager->getForumsVars();
+			foreach ($forums as $iForumID => $forum) {
+				$forums[$iForumID]['totalThreadCount'] = 0;
+				$forums[$iForumID]['totalPostCount'] = 0;
+				$forum['latestPost']['datePosted'] = $forum['latestPost']['datePosted']->sec;
+				foreach ($forum['heritage'] as $hForumID) {
+					$forums[$hForumID]['totalThreadCount'] += $forum['threadCount'];
+					$forums[$hForumID]['totalPostCount'] += $forum['postCount'];
+					if ($forums[$hForumID]['latestPost']['datePosted'] == null || $forum['latestPost']['datePosted'] > $forums[$hForumID]['latestPost']['datePosted']) 
+						$forums[$hForumID]['latestPost'] = $forum['latestPost'];
+				}
+			}
+			$returns = array('success' => true, 'forums' => $forums);
+			if (isset($_POST['getThreads']) && $_POST['getThreads']) {
+				$returns['threads'] = $forumManager->getThreads($_POST['page']);
+				$markedRead = $forums[$forumID]['markedRead'];
+				foreach ($returns['threads'] as &$thread) {
+					$thread = $thread->getThreadVars();
+					$thread['lastPost']['datePosted'] = $thread['lastPost']['datePosted']->sec;
+					$maxRead = $markedRead > $thread['lastRead']?$markedRead:$thread['lastRead'];
+					$thread['newPosts'] = $thread['lastPost']['datePosted'] > $maxRead?true:false;
+				}
+			}
 
-			displayJSON(array('success' => true, 'forum' => $forumManager->getForumsVars()));
+			displayJSON($returns);
+		}
+
+		public function getThreads() {
+			$forumID = (int) $_POST['forumID'];
+			$page = intval($page) > 0?intval($page):1;
+			$offset = ($page - 1) * PAGINATE_PER_PAGE;
+
+			$rThreads = $mongo->threads->find(['forumID' => $forumID]);
+			$threads = [];
+//			foreach ($rThreads)
 		}
 
 		public function getSubscriptions() {

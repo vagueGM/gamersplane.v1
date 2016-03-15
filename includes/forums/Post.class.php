@@ -100,10 +100,10 @@
 		}
 
 		public function setMessage($value) {
-			global $mysql, $currentUser;
+			global $mongo, $currentUser;
 
-			$isForumAdmin = $mysql->query("SELECT userID FROM forumAdmins WHERE userID = {$currentUser->userID} AND forumID = 0");
-			$message = sanitizeString($value, $isForumAdmin->rowCount()?'!strip_tags':'');
+			$isForumAdmin = $mongo->forums->findOne(['forumID' => 0, 'admins' => $currentUser->userID], ['forumID' => true]);
+			$message = sanitizeString($value, $isForumAdmin != null?'!strip_tags':'');
 			if ($message != $this->getMessage()) 
 				$this->modified = true;
 			$this->message = $message;
@@ -158,8 +158,26 @@
 			return $this->postAs;
 		}
 
-		public function savePost() {
+		public function savePost($datePosted = null) {
 			global $currentUser, $mysql, $mongo;
+
+			$postData = [
+				'postID' => null,
+				'threadID' => $this->threadID,
+				'title' => $this->title,
+				'authorID' => $this->author->userID,
+				'message' => $this->message,
+				'datePosted' => $datePosted,
+				'lastEdit' => null,
+				'timesEdited' => $this->timesEdited,
+				'rolls' => null,
+				'draws'	=> null
+			];
+			if ($this->postAs) 
+				$postData['postAs'] = $this->postAs;
+			if (sizeof($this->rolls)) 
+				foreach ($this->rolls as $roll) 
+					$postData['rolls'][] = $roll->mongoFormat();
 
 			if ($this->postID == null) {
 				$addPost = $mysql->prepare("INSERT INTO posts SET threadID = {$this->threadID}, title = :title, authorID = {$currentUser->userID}, message = :message, datePosted = :datePosted, postAs = ".($this->postAs?$this->postAs:'NULL'));

@@ -8,7 +8,7 @@
 	$dispatchInfo['description'] = "A {$systems->getFullName($gameInfo['system'])} game for {$gameInfo['numPlayers']} players. ".($gameInfo['description']?$gameInfo['description']:'No description provided.');
 ?>
 <?	require_once(FILEROOT.'/header.php'); ?>
-		<h1 class="headerbar">Game Details <a ng-if="isGM" href="/games/{{gameID}}/edit/">[ EDIT ]</a></h1>
+		<h1 class="headerbar" skew-element>Game Details <a ng-if="isGM" href="/games/{{gameID}}/edit/">[ EDIT ]</a></h1>
 
 <?	if ($_GET['submitted'] || $_GET['wrongSystem'] || $_GET['approveError']) { ?>
 		<div class="alertBox_error"><ul>

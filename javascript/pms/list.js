@@ -19,7 +19,7 @@ controllers.controller('pmList', ['$scope', '$http', 'CurrentUser', 'DeletePM', 
 			$http.post(API_HOST + '/pms/get/', { box: $scope.box, page: $scope.pagination.current }).success(function (data) {
 				if (data.success) {
 					data.pms.forEach(function (value, key) {
-						data.pms[key].datestamp = convertTZ(value.datestamp, 'YYYY-MM-DD HH:mm:ss', 'MMMM D, YYYY h:mm a')
+						data.pms[key].datestamp = convertTZ(value.datestamp, 'YYYY-MM-DD HH:mm:ss', 'MMMM D, YYYY h:mm a');
 					});
 					$scope.pms = data.pms;
 					$scope.pagination.numItems = data.totalCount;

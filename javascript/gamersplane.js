@@ -144,8 +144,10 @@ $(function() {
 
 	$('.convertTZ').each(function () {
 		var parseFormat = 'MMMM D, YYYY h:mm a', displayFormat = 'MMMM D, YYYY h:mm a';
-		if ($(this).data('parseFormat')) parseFormat = $(this).data('parseFormat');
-		if ($(this).data('displayFormat')) displayFormat = $(this).data('displayFormat');
+		if ($(this).data('parseFormat')) 
+			parseFormat = $(this).data('parseFormat');
+		if ($(this).data('displayFormat')) 
+			displayFormat = $(this).data('displayFormat');
 		$(this).text(convertTZ($(this).text(), parseFormat, displayFormat));
 	});
 
@@ -283,8 +285,17 @@ app.config(['$httpProvider', function ($httpProvider) {
 		});
 	};
 }]).service('ForumsService', ['$http', function ($http) {
-	this.getForum = function (forumID) {
-		return $http.post(API_HOST + '/forums/getForum/', { forumID: forumID }).then(function (data) { return data.data; });
+	this.getForum = function (forumID, getThreads, page) {
+		if (typeof getThreads == 'undefined') 
+			getThreads = false;
+		if (typeof page == 'undefined') 
+			page = 1;
+		return $http.post(API_HOST + '/forums/getForum/', { forumID: forumID, getThreads: getThreads, page: page }).then(function (data) { return data.data; });
+	};
+	this.getThreads = function (forumID, page) {
+		if (typeof page == 'undefined') 
+			page = 1;
+		return $http.post(API_HOST + '/forums/getThreads/', { forumID: forumID, page: page }).then(function (data) { return data.data; });
 	};
 	this.getSubscriptions = function (fields) {
 		return $http.post(API_HOST + '/forums/getSubscriptions/', fields).then(function (data) {

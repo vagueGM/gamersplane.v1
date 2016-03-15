@@ -94,6 +94,8 @@
 					'usermeta' => $currentUser->usermeta,
 					'acpPermissions' => $currentUser->acpPermissions
 				);
+				if (isset($cleanUser['usermeta']['showPubGames'])) 
+					$cleanUser['usermeta']['showPubGames'] = (bool) $cleanUser['usermeta']['showPubGames'];
 				displayJSON($cleanUser);
 			}
 		}

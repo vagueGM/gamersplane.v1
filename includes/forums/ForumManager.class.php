@@ -35,7 +35,7 @@
 			$forumConds = sizeof($forumConds) > 1?['$or' => $forumConds]:$forumConds[0];
 			if ($forumID == 0 || $forumID == 2) 
 				$forumConds['gameID'] = null;
-			$forumsR = $mongo->forums->find($forumConds);
+			$forumsR = $mongo->forums->find($forumConds)->sort(['depth' => 1]);
 			foreach ($forumsR as $forum) 
 				$this->forumsData[$forum['forumID']] = $forum;
 			if (($this->currentForum == 0 || $this->currentForum == 2) && bindec($options&$this::NO_CHILDREN) == 0) {
@@ -187,74 +187,6 @@
 			else return false;
 		}
 
-		public function displayForum() {
-			global $loggedIn, $currentUser;
-
-			if (sizeof($this->forums[$this->currentForum]->children) == 0) 
-				return false;
-
-			$tableOpen = false;
-			$lastType = 'f';
-			foreach ($this->forums[$this->currentForum]->children as $childID) {
-				if ($tableOpen && ($lastType == 'c' || $this->forums[$childID]->forumType == 'c')) {
-					$tableOpen = false;
-					echo "\t\t\t</div>\n\t\t</div>\n";
-				}
-				if (!$tableOpen) {
-?>
-		<div class="tableDiv">
-			<div class="clearfix">
-<?					if ($loggedIn && $childID == 2) { ?>
-				<div class="pubGameToggle hbdMargined">
-					<span>Show public games: </span>
-					<a href="/forums/process/togglePubGames/" class="ofToggle disable<?=$currentUser->showPubGames?' on':''?>"></a>
-				</div>
-<?					} ?>
-				<h2 class="trapezoid redTrapezoid"><?=$this->forums[$childID]->forumType == 'c'?$this->forums[$childID]->title:'Subforums'?></h2>
-			</div>
-			<div class="tr headerTR headerbar hbDark">
-				<div class="td icon">&nbsp;</div>
-				<div class="td name">Forum</div>
-				<div class="td numThreads"># of Threads</div>
-				<div class="td numPosts"># of Posts</div>
-				<div class="td lastPost">Last Post</div>
-			</div>
-			<div class="sudoTable forumList hbdMargined">
-<?
-					$tableOpen = true;
-				}
-				if ($this->forums[$childID]->forumType == 'f') 
-					$this->displayForumRow($childID);
-				elseif (is_array($this->forums[$childID]->children))
-					foreach ($this->forums[$childID]->children as $cChildID) 
-						$this->displayForumRow($cChildID);
-				$lastType = $this->forums[$childID]->forumType;
-			}
-			echo "\t\t\t</div>\n\t\t</div>\n";
-		}
-
-		public function displayForumRow($forumID) {
-			$forum = $this->forums[$forumID];
-?>
-				<div class="tr<?=$this->newPosts($forumID)?'':' noPosts'?>">
-					<div class="td icon"><div class="forumIcon<?=$this->newPosts($forumID)?' newPosts':''?>" title="<?=$this->newPosts($forumID)?'New':'No new'?> posts in forum" alt="<?=$this->newPosts($forumID)?'New':'No new'?> posts in forum"></div></div>
-					<div class="td name">
-						<a href="/forums/<?=$forum->forumID?>/"><?=printReady($forum->title)?></a>
-<?=($forum->description != '')?"\t\t\t\t\t\t<div class=\"description\">".printReady($forum->description)."</div>\n":''?>
-					</div>
-					<div class="td numThreads"><?=$this->getTotalThreadCount($forumID)?></div>
-					<div class="td numPosts"><?=$this->getTotalPostCount($forumID)?></div>
-					<div class="td lastPost">
-<?
-			$lastPost = $this->getLastPost($forumID);
-			if ($lastPost) echo "\t\t\t\t\t\t<a href=\"/user/{$lastPost->userID}/\" class=\"username\">{$lastPost->username}</a><br><span class=\"convertTZ\">".date('M j, Y g:i a', strtotime($lastPost->datePosted))."</span>\n";
-			else echo "\t\t\t\t\t\t</span>No Posts Yet!</span>\n";
-?>
-					</div>
-				</div>
-<?
-		}
-
 		public function getTotalThreadCount($forumID) {
 			$forum = $this->forums[$forumID];
 
@@ -336,7 +268,7 @@
 		}
 
 		public function getThreads($page = 1) {
-			$this->forums[$this->currentForum]->getThreads($page);
+			return $this->forums[$this->currentForum]->getThreads($page);
 		}
 
 		public function displayThreads() {

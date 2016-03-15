@@ -3,7 +3,7 @@
 		protected $forumID;
 		protected $title;
 		protected $description;
-		protected $forumType;
+		protected $type;
 		protected $parentID;
 		protected $heritage;
 		protected $order;
@@ -20,7 +20,8 @@
 		protected $threads = array();
 
 		public function __construct($forumID = null, $forumData = null) {
-			if ($forumID === null) return true;
+			if ($forumID === null) 
+				return true;
 
 			$this->forumID = (int) $forumID;
 			foreach (get_object_vars($this) as $key => $value) {
@@ -37,8 +38,8 @@
 				$this->forumID = intval($value);
 			elseif (in_array($key, array('title', 'description', 'heritage', 'permissions'))) 
 				$this->$key = $value;
-			elseif ($key == 'forumType' && in_array(strtolower($value), array('f', 'c'))) 
-				$this->forumType = strtolower($value);
+			elseif ($key == 'type' && in_array(strtolower($value), array('f', 'c'))) 
+				$this->type = strtolower($value);
 			elseif (in_array($key, array('parentID', 'order', 'threadCount', 'postCount', 'markedRead'))) 
 				$this->$key = intval($value);
 			elseif ($key == 'newPosts') 
@@ -76,7 +77,7 @@
 		}
 
 		public function getType() {
-			return $this->forumType;
+			return $this->type;
 		}
 
 		public function getParentID() {
@@ -114,7 +115,11 @@
 		}
 
 		public function sortChildren() {
-			ksort($this->children);
+			$children = $this->children;
+			ksort($children);
+			$this->children = [];
+			foreach ($children as $forumID) 
+				$this->children[] = $forumID;
 		}
 
 		public function getGameID() {
@@ -147,14 +152,27 @@
 		}
 
 		public function getThreads($page = 1) {
-			global $currentUser, $mysql;
+			global $currentUser, $mongo;
 
 			$page = intval($page) > 0?intval($page):1;
 			$offset = ($page - 1) * PAGINATE_PER_PAGE;
 
-			$threads = $mysql->query("SELECT t.threadID, t.locked, t.sticky, fp.title, fp.authorID, tAuthor.username authorUsername, fp.datePosted, lp.postID lp_postID, lp.authorID lp_authorID, lAuthor.username lp_username, lp.datePosted lp_datePosted, t.postCount, IFNULL(rd.lastRead, 0) lastRead FROM threads t INNER JOIN posts fp ON t.firstPostID = fp.postID INNER JOIN users tAuthor ON fp.authorID = tAuthor.userID LEFT JOIN posts lp ON t.lastPostID = lp.postID LEFT JOIN users lAuthor ON lp.authorID = lAuthor.userID LEFT JOIN forums_readData_threads rd ON t.threadID = rd.threadID AND rd.userID = {$currentUser->userID} WHERE t.forumID = {$this->forumID} ORDER BY t.sticky DESC, lp.datePosted DESC LIMIT {$offset}, ".PAGINATE_PER_PAGE);
-			foreach ($threads as $thread) 
-				$this->threads[] = new Thread($thread);
+			$threads = [];
+			$threadIDs = [];
+			$rThreads = $mongo->threads->find(['forumID' => $this->forumID])->sort(['datePosted' => -1])->skip($offset)->limit(PAGINATE_PER_PAGE);
+			foreach ($rThreads as $thread) 
+				$threadIDs[] = $thread['threadID'];
+			$readData = [];
+			$rReadData = $mongo->forumsReadData->find(['userID' => $currentUser->userID, 'type' => 'thread', 'threadIDs' => ['$in' => $threadIDs]], ['threadID' => true, 'lastRead' => true]);
+			foreach ($rReadData as $threadRD) 
+				$readData[$threadRD['threadID']] = $threadRD['lastRead'];
+			foreach ($rThreads as $thread) {
+				$thread['lastRead'] = isset($readData[$thread['threadID']])?$readData[$thread['threadID']]:0;
+				$threads[] = new Thread($thread);
+			}
+			$this->threads = $threads;
+
+			return $threads;
 		}
 
 		public function deleteForum() {

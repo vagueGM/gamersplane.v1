@@ -31,7 +31,7 @@
 			$this->datePosted = $this->datePosted->sec;
 			$this->states['sticky'] = $loadData['sticky'];
 			$this->states['locked'] = $loadData['locked'];
-			$this->lastRead = $this->lastRead->sec;
+			$this->lastRead = $this->lastRead?$this->lastRead->sec:0;
 		}
 
 		public function toggleValue($key) {
@@ -160,6 +160,10 @@
 
 		public function getVoteMax() {
 			return $this->poll->getVoteMax();
+		}
+
+		public function getThreadVars() {
+			return get_object_vars($this);
 		}
 	}
 ?>

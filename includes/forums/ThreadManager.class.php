@@ -166,8 +166,15 @@
 			];
 			if ($this->threadID == null) {
 				$threadData['title'] = $post->getTitle();
+				$datePosted = time();
+				$threadData['datePosted'] = new MongoDate($datePosted);
+				$threadData['authorID'] = $post->getAuthor('userID');
+/*				$threadData['lastPost'] = [
+					'postID' =>
+				];*/
 				$post->setThreadID($this->threadID);
-				$postID = $post->savePost();
+				$post->setDatePosted($datePosted);
+				$postID = $post->savePost($datePosted);
 
 				$mysql->query("UPDATE threads SET firstPostID = {$postID}, lastPostID = {$postID} WHERE threadID = {$this->threadID}");
 				$mysql->query("UPDATE forums SET threadCount = threadCount + 1 WHERE forumID = {$this->thread->forumID}");
