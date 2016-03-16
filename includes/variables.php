@@ -10,8 +10,8 @@
 	$ext = explode('.', $_SERVER['HTTP_HOST']);
 	$ext = end($ext);
 	define('COOKIE_DOMAIN', '.gamersplane.'.$ext);
-	$loggedIn = 0;
-	$fixedMenu = FALSE;
+	$loggedIn = false;
+	$fixedMenu = false;
 
 	$dispatchInfo404 = array('url' => '/404', 'pageID' => '404', 'file' => 'errors/404.php', 'title' => 'Not Found');
 

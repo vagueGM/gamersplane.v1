@@ -52,12 +52,20 @@
 
 		public function getThreads() {
 			$forumID = (int) $_POST['forumID'];
+			$forumManager = new ForumManager($forumID, ForumManager::NO_CHILDREN);
 			$page = intval($page) > 0?intval($page):1;
 			$offset = ($page - 1) * PAGINATE_PER_PAGE;
 
-			$rThreads = $mongo->threads->find(['forumID' => $forumID]);
-			$threads = [];
-//			foreach ($rThreads)
+			$forums = $forumManager->getForumsVars();
+			$threads = $forumManager->getThreads($_POST['page']);
+			$markedRead = $forums[$forumID]['markedRead'];
+			foreach ($threads as &$thread) {
+				$thread = $thread->getThreadVars();
+				$thread['lastPost']['datePosted'] = $thread['lastPost']['datePosted']->sec;
+				$maxRead = $markedRead > $thread['lastRead']?$markedRead:$thread['lastRead'];
+				$thread['newPosts'] = $thread['lastPost']['datePosted'] > $maxRead?true:false;
+			}
+			displayJSON(array('success' => true, 'threads' => $threads));
 		}
 
 		public function getSubscriptions() {

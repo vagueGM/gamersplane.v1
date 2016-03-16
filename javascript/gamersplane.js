@@ -516,7 +516,36 @@ app.config(['$httpProvider', function ($httpProvider) {
 
 		}
 	}
-}).directive('hbMargined', ['$timeout', function ($timeout) {
+}).directive('trapezoidify', [function () {
+	return {
+		restrict: 'A',
+		transclude: true,
+		template: '<div class="leftWing"></div><div class="rightWing"></div><div class="content"><ng-transclude></ng-transclude></div>',
+		link: function (scope, element, attrs) {
+			$element = $(element);
+			if (typeof attrs.trapSkew != 'undefined') 
+				skew = parseInt(attrs.trapSkew);
+			else 
+				skew = -30;
+			height = $element.outerHeight();
+			sideBorderWidth = Math.ceil(Math.tan(Math.abs(skew) * Math.PI / 180) * height);
+			$element.children('.content').css({
+				'margin-left'   : sideBorderWidth + 'px',
+				'margin-right'  : sideBorderWidth + 'px',
+			});
+			$element.children('.leftWing').css({
+				'border-left-width' : sideBorderWidth + 'px',
+			});
+			$element.children('.rightWing').css({
+				'border-right-width' : sideBorderWidth + 'px',
+			});
+			if (attrs.trapezoidify == 'down') 
+				$element.children('.leftWing, .rightWing').css('border-bottom-width', height + 'px');
+			else 
+				$element.children('.leftWing, .rightWing').css('border-top-width', height + 'px');
+		}
+	}
+}]).directive('hbMargined', ['$timeout', function ($timeout) {
 	return {
 		restrict: 'A',
 		link: function (scope, element, attrs) {

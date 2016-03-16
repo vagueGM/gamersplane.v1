@@ -31,6 +31,8 @@
 					continue;//throw new Exception('Missing data for '.$this->forumID.': '.$key);
 				$this->__set($key, $forumData[$key]);
 			}
+			if ($this->latestPost['threadID'] != null) 
+				$this->latestPost['datePosted'] = $this->latestPost['datePosted']->sec;
 		}
 
 		public function __set($key, $value) {
@@ -163,7 +165,11 @@
 			foreach ($rThreads as $thread) 
 				$threadIDs[] = $thread['threadID'];
 			$readData = [];
-			$rReadData = $mongo->forumsReadData->find(['userID' => $currentUser->userID, 'type' => 'thread', 'threadIDs' => ['$in' => $threadIDs]], ['threadID' => true, 'lastRead' => true]);
+			$rReadData = $mongo->forumsReadData->find([
+				'userID' => $currentUser->userID,
+				'type' => 'thread',
+				'threadID' => ['$in' => $threadIDs]
+			], ['threadID' => true, 'lastRead' => true]);
 			foreach ($rReadData as $threadRD) 
 				$readData[$threadRD['threadID']] = $threadRD['lastRead'];
 			foreach ($rThreads as $thread) {

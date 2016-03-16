@@ -32,11 +32,11 @@
 		</div>
 		<div ng-repeat="fGroup in mainStructure" class="tableDiv">
 			<div class="clearfix">
-				<div ng-if="loggedIn && fGroup.forumID == 2" class="pubGameToggle hbdMargined">
+				<div ng-if="loggedIn && fGroup.forumID == 2" class="pubGameToggle" hb-margined="dark">
 					<span>Show public games: </span>
 					<a href="/forums/process/togglePubGames/" class="ofToggle disable" ng-class="{ 'on': currentUser.usermeta.showPubGames }"></a>
 				</div>
-				<h2 class="trapezoid redTrapezoid">{{forums[fGroup.forumID].type == 'c'?forums[fGroup.forumID].title:'Subforums'}}</h2>
+				<h2 class="trapezoid redTrapezoid" trapezoidify="down">{{forums[fGroup.forumID].type == 'c'?forums[fGroup.forumID].title:'Subforums'}}</h2>
 			</div>
 			<div class="tr headerTR headerbar hbDark" skew-element>
 				<div class="td icon">&nbsp;</div>
@@ -63,8 +63,8 @@
 				</div>
 			</div>
 		</div>
-		<div class="tableDiv threadTable">
-			<div ng-if="currentForum.permissions.createThread" hb-margined><a href="/forums/newThread/{{forumID}}/" class="fancyButton">New Thread</a></div>
+		<div ng-if="forumID != 0" class="tableDiv threadTable">
+			<div ng-if="currentForum.permissions.createThread" hb-margined><a href="/forums/newThread/{{forumID}}/" class="fancyButton" skew-element>New Thread</a></div>
 			<div class="tr headerTR headerbar hbDark">
 				<div class="td icon">&nbsp;</div>
 				<div class="td threadInfo">Thread</div>
@@ -87,11 +87,11 @@
 							<a href="/forums/thread/{{thread.threadID}}/?view=lastPost#lastPost"><img src="/images/downArrow.png" title="Last post" alt="Last post"></a>
 						</div>
 						<a href="/forums/thread/{{thread.threadID}}/" ng-bind-html="thread.title"></a><br>
-						<span class="threadAuthor">by <a href="/user/{{thread.author.userID}}/" class="username" ng-bind-html="thread.author.username"></a> on <span>{{thread.datePosted | amUtc | amLocal | amDateFormat: 'MMM D, YYYY h:mm a'}}</span></span>
+						<span class="threadAuthor">by <a href="/user/{{thread.author.userID}}/" class="username" ng-bind-html="thread.author.username"></a> on <span>{{thread.datePosted * 1000 | amUtc | amLocal | amDateFormat: 'MMM D, YYYY h:mm a'}}</span></span>
 					</div>
 					<div class="td numPosts">{{thread.postCount}}</div>
 					<div class="td lastPost">
-						<a href="/user/{{thread.lastPost.author.userID}}/" class="username" ng-bind-html="thread.lastPost.author.username"></a><br><span>{{thread.lastPost.datePosted | amUtc | amLocal | amDateFormat: 'MMM D, YYYY h:mm a'}}</span>
+						<a href="/user/{{thread.lastPost.author.userID}}/" class="username" ng-bind-html="thread.lastPost.author.username"></a><br><span class="datePosted">{{thread.lastPost.datePosted * 1000 | amUtc | amLocal | amDateFormat: 'MMM D, YYYY h:mm a'}}</span>
 					</div>
 				</div>
 				<div ng-if="threads.length == 0" class="tr noThreads">No threads yet</div>
@@ -104,6 +104,6 @@
 				<p ng-if="loggedIn"><a id="forumSub" href="/forums/process/subscribe/?forumID=<?=$forumID?>">{{subscribed?'Unsubscribe from':'Subscribe to'}} forum</a></p>
 				<p ng-if="loggedIn"><a href="/forums/subscriptions/">Manage Subscriptions</a></p>
 			</div>
-			<paginate num-items="threads.length" items-per-page="PAGINATE_PER_PAGE" current="pagination.current" class="tr"></paginate>
+			<paginate num-items="forums[forumID].threadCount" items-per-page="PAGINATE_PER_PAGE" current="pagination.current" change-func="getThreads" class="tr"></paginate>
 		</div>
 <?	require_once(FILEROOT.'/footer.php'); ?>

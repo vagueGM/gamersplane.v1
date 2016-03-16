@@ -19,6 +19,7 @@ controllers.controller('forum', ['$scope', 'Range', 'CurrentUser', 'ForumsServic
 	$scope.forumID = pathElements[1]?parseInt(pathElements[1]):0;
 	$scope.forums = {};
 	$scope.mainStructure = {};
+	$scope.pagination = { current: parseInt($.urlParam('page')) > 0?parseInt($.urlParam('page')):1 };
 	CurrentUser.load().then(function (loggedIn) {
 		$scope.loggedIn = loggedIn;
 		$scope.currentUser = CurrentUser.get();
@@ -26,7 +27,7 @@ controllers.controller('forum', ['$scope', 'Range', 'CurrentUser', 'ForumsServic
 		$scope.forums = {};
 		$scope.threads = [];
 		$scope.mainStructure = [];
-		ForumsService.getForum(pathElements[1], true, $.urlParam('page')).then(function (data) {
+		ForumsService.getForum(pathElements[1], true, $scope.pagination.current).then(function (data) {
 			$scope.forums = data.forums;
 			$scope.threads = data.threads?data.threads:[];
 			$scope.currentForum = $scope.forums[$scope.forumID];
@@ -55,13 +56,19 @@ controllers.controller('forum', ['$scope', 'Range', 'CurrentUser', 'ForumsServic
 		});
 	});
 
+	$scope.getThreads = function () {
+		ForumsService.getThreads($scope.forumID, $scope.pagination.current).then(function (data) {
+			$scope.threads = data.threads?data.threads:[];
+		});
+	}
+
 	$scope.getNumPages = function (count) {
 		return Math.ceil(count / PAGINATE_PER_PAGE);
 	}
 
 	$scope.paginateThread = function (postCount) {
 		numPages = $scope.getNumPages(postCount);
-		start = numPages <= 4?0:numPages - 1;
+		start = numPages <= 4?1:numPages - 1;
 		return Range.get(start, numPages, 1);
 	}
 }]);

@@ -64,12 +64,17 @@
 				$this->forumsData[$pForumID]['permissions'] = $permission;
 			foreach ($this->forumsData as $forumID => $forumData) 
 				$this->spawnForum($forumID);
-			foreach (array_keys($this->forumsData) as $forumID) 
-				$this->forums[$forumID]->sortChildren();
 			if ($options&$this::ADMIN_FORUMS) 
 				$this->pruneByPermissions(0, 'admin');
 			else 
 				$this->pruneByPermissions();
+			foreach (array_keys($this->forumsData) as $forumID) {
+				$this->forums[$forumID]->sortChildren();
+				if ($this->forums[$forumID]->latestPost['threadID'] != null) 
+					foreach ($this->forums[$forumID]->getHeritage() as $hForumID) 
+						if ($this->forums[$hForumID]->latestPost['datePosted'] == null || $this->forums[$forumID]->latestPost['datePosted'] > $this->forums[$hForumID]->latestPost['datePosted']) 
+							$this->forums[$hForumID]->latestPost = $this->forums[$forumID]->latestPost;
+			}
 
 			$rForumReadData = $mongo->forumsReadData->find([
 				'userID' => $currentUser->userID,
@@ -79,19 +84,16 @@
 			foreach ($rForumReadData as $readData) 
 				$this->forums[$readData['forumID']]->markedRead = $readData['markedRead']->sec;
 			$getThreadRD = [];
-			foreach ($this->forums as $forum) {
-				foreach ($forum->getHeritage() as $hForumID) 
-					if ($this->forums[$hForumID]->getMarkedRead() > $forum->getMarkedRead()) 
-						$this->forums[$forum->getForumID()]->markedRead = $this->forums[$hForumID]->getMarkedRead();
-				if ($forum->latestPost->threadID == null || $forum->latestPost->datePosted->sec < $this->forums[$forum->getForumID()]->getMarkedRead()) 
+			foreach ($this->forums as $forum) 
+				if ($forum->latestPost['datePosted'] > $this->forums[$forum->getForumID()]->getMarkedRead()) {
 					$getThreadRD[] = $forum->getForumID();
-			}
+				}
 			if (!($options&$this::NO_NEWPOSTS) && sizeof($getThreadRD)) {
 				$rThreadReadData = $mongo->forumsReadData->find([
 					'userID' => $currentUser->userID,
 					'forumID' => ['$in' => $getThreadRD],
 					'type' => 'thread',
-					'lastRead' => ['$gt' => new MongoDate($this->forums[$forumID]->getMarkedRead())]
+					'lastRead' => ['$gt' => new MongoDate($this->forums[$this->currentForum]->getMarkedRead())]
 				], ['threadID' => true, 'forumID' => true, 'lastRead' => true]);
 				$threadReadData = [];
 				$getThreadData = [];
@@ -99,18 +101,24 @@
 					$threadReadData[$thread['threadID']] = $thread;
 					$getThreadData[] = $thread['forumID'];
 				}
+				foreach (array_diff($getThreadRD, $getThreadData) as $forumID) 
+					$this->forums[$forumID]->setNewPosts(true);
 				$rThreadData = $mongo->threads->find([
 					'forumID' => ['$in' => $getThreadData],
-					'lastPost.datePosted' => ['$gt' => new MongoDate($this->forums[$forumID]->getMarkedRead())]
+					'lastPost.datePosted' => ['$gt' => new MongoDate($this->forums[$this->currentForum]->getMarkedRead())]
 				], ['threadID' => true, 'forumID' => true, 'lastPost' => true]);
 				foreach ($rThreadData as $thread) {
 					if ($this->forums[$thread['forumID']]->getNewPosts()) 
 						continue;
-					if (!isset($threadReadData[$thread['threadID']])) 
+					if (!isset($threadReadData[$thread['threadID']]) || $threadReadData[$thread['threadID']]['lastRead']->sec < $thread['lastPost']['datePosted']->sec) {
 						$this->forums[$thread['forumID']]->setNewPosts(true);
-					elseif ($threadReadData[$thread['threadID']]['lastRead']->sec < $thread['lastPost']['datePosted']->sec) 
-						$this->forums[$thread['forumID']]->setNewPosts(true);
+						foreach ($this->forums[$thread['forumID']]->getHeritage() as $hForumID) 
+							$this->forums[$hForumID]->setNewPosts(true);
+					}
 				}
+				foreach ($forum->getHeritage() as $hForumID) 
+					if ($this->forums[$hForumID]->getMarkedRead() > $forum->getMarkedRead()) 
+						$this->forums[$forum->getForumID()]->markedRead = $this->forums[$hForumID]->getMarkedRead();
 			}
 		}
 
