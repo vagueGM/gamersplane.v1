@@ -43,16 +43,8 @@
 			}
 			$forums[$forumID]['subscribed'] = (bool) $mongo->forumSubs->findOne(['userID' => $currentUser->userID, 'type' => 'f', 'forumID' => $forumID], ['_id' => true]);
 			$returns = array('success' => true, 'forums' => $forums);
-			if (isset($_POST['getThreads']) && $_POST['getThreads']) {
-				$returns['threads'] = $forumManager->getThreads($_POST['page']);
-				$markedRead = $forums[$forumID]['markedRead'];
-				foreach ($returns['threads'] as &$thread) {
-					$thread = $thread->getThreadVars();
-					$thread['lastPost']['datePosted'] = $thread['lastPost']['datePosted']->sec;
-					$maxRead = $markedRead > $thread['lastRead']?$markedRead:$thread['lastRead'];
-					$thread['newPosts'] = $thread['lastPost']['datePosted'] > $maxRead?true:false;
-				}
-			}
+			if (isset($_POST['getThreads']) && $_POST['getThreads']) 
+				$returns['threads'] = $this->getAndProcessThreads($forumID, $forumManager);
 
 			displayJSON($returns);
 		}
@@ -63,6 +55,11 @@
 			$page = intval($page) > 0?intval($page):1;
 			$offset = ($page - 1) * PAGINATE_PER_PAGE;
 
+			$threads = $this->getAndProcessThreads($forumID, $forumManager);
+			displayJSON(['success' => true, 'threads' => $threads]);
+		}
+
+		private function getAndProcessThreads($forumID, $forumManager) {
 			$forums = $forumManager->getForumsVars();
 			$threads = $forumManager->getThreads($_POST['page']);
 			$markedRead = $forums[$forumID]['markedRead'];
@@ -72,7 +69,7 @@
 				$maxRead = $markedRead > $thread['lastRead']?$markedRead:$thread['lastRead'];
 				$thread['newPosts'] = $thread['lastPost']['datePosted'] > $maxRead?true:false;
 			}
-			displayJSON(['success' => true, 'threads' => $threads]);
+			return $threads;
 		}
 
 		public function markAsRead() {

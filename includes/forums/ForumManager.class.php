@@ -92,6 +92,7 @@
 					$getThreadRD[] = $forum->getForumID();
 				}
 			}
+			// exit;
 			if (!($options&$this::NO_NEWPOSTS) && sizeof($getThreadRD)) {
 				$rThreadReadData = $mongo->forumsReadData->find([
 					'userID' => $currentUser->userID,
