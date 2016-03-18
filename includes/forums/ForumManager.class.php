@@ -84,10 +84,14 @@
 			foreach ($rForumReadData as $readData) 
 				$this->forums[$readData['forumID']]->markedRead = $readData['markedRead']->sec;
 			$getThreadRD = [];
-			foreach ($this->forums as $forum) 
+			foreach ($this->forums as $forum) {
+				foreach ($forum->getHeritage() as $hForumID) 
+					if ($this->forums[$hForumID]->getMarkedRead() > $forum->getMarkedRead()) 
+						$this->forums[$forum->getForumID()]->markedRead = $this->forums[$hForumID]->getMarkedRead();
 				if ($forum->latestPost['datePosted'] > $this->forums[$forum->getForumID()]->getMarkedRead()) {
 					$getThreadRD[] = $forum->getForumID();
 				}
+			}
 			if (!($options&$this::NO_NEWPOSTS) && sizeof($getThreadRD)) {
 				$rThreadReadData = $mongo->forumsReadData->find([
 					'userID' => $currentUser->userID,
@@ -116,9 +120,6 @@
 							$this->forums[$hForumID]->setNewPosts(true);
 					}
 				}
-				foreach ($forum->getHeritage() as $hForumID) 
-					if ($this->forums[$hForumID]->getMarkedRead() > $forum->getMarkedRead()) 
-						$this->forums[$forum->getForumID()]->markedRead = $this->forums[$hForumID]->getMarkedRead();
 			}
 		}
 
@@ -183,9 +184,12 @@
 		}
 
 		public function getForumProperty($forumID, $property) {
-			if (preg_match('/(\w+)\[(\w+)\]/', $property, $matches)) return $this->forums[$forumID]->{$matches[1]}[$matches[2]];
-			elseif (preg_match('/(\w+)->(\w+)/', $property, $matches)) return $this->forums[$forumID]->$matches[1]->$matches[2];
-			else return $this->forums[$forumID]->$property;
+			if (preg_match('/(\w+)\[(\w+)\]/', $property, $matches)) 
+				return $this->forums[$forumID]->{$matches[1]}[$matches[2]];
+			elseif (preg_match('/(\w+)->(\w+)/', $property, $matches)) 
+				return $this->forums[$forumID]->$matches[1]->$matches[2];
+			else 
+				return $this->forums[$forumID]->$property;
 		}
 
 		public function displayCheck($forumID = null) {

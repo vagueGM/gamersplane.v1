@@ -23,7 +23,7 @@
 			if ($forumID === null) 
 				return true;
 
-			$this->forumID = (int) $forumID;
+				$this->forumID = (int) $forumID;
 			foreach (get_object_vars($this) as $key => $value) {
 				if (in_array($key, array('children'))) 
 					continue;

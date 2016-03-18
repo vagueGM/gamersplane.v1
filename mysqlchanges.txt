@@ -1,1 +1,2 @@
 UPDATE dispatch SET ngController = 'forum' WHERE pageID = 'forum';
+UPDATE dispatch SET ngController = 'thread' WHERE pageID = 'forum_thread';

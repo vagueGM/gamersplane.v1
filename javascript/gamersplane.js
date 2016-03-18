@@ -297,6 +297,12 @@ app.config(['$httpProvider', function ($httpProvider) {
 			page = 1;
 		return $http.post(API_HOST + '/forums/getThreads/', { forumID: forumID, page: page }).then(function (data) { return data.data; });
 	};
+	this.markAsRead = function (forumID) {
+		return $http.post(API_HOST + '/forums/markAsRead/', { forumID: forumID }).then(function (data) { return data.data; });
+	};
+	this.toggleSub = function (type, typeID) {
+		return $http.post(API_HOST + '/forums/toggleSub/', { type: type, typeID: typeID }).then(function (data) { return data.data; });
+	};
 	this.getSubscriptions = function (fields) {
 		return $http.post(API_HOST + '/forums/getSubscriptions/', fields).then(function (data) {
 			return data.data;

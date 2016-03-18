@@ -23,3 +23,14 @@ $(function() {
 		});
 	});
 });
+
+controllers.controller('forum', ['$scope', 'Range', 'CurrentUser', 'ForumsService', function ($scope, Range, CurrentUser, ForumsService) {
+	$scope.PAGINATE_PER_PAGE = PAGINATE_PER_PAGE;
+	$scope.$emit('pageLoading');
+	pathElements = getPathElements();
+	$scope.threadID = pathElements[1]?parseInt(pathElements[1]):0;
+	$scope.posts = [];
+	$scope.pagination = { current: parseInt($.urlParam('page')) > 0?parseInt($.urlParam('page')):1 };
+	CurrentUser.load().then(function (loggedIn) {
+	});
+});

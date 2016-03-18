@@ -12,8 +12,12 @@
 				$this->getForum();
 			elseif ($pathOptions[0] == 'getThreads') 
 				$this->getThreads();
+			elseif ($pathOptions[0] == 'markAsRead') 
+				$this->markAsRead();
 			elseif ($pathOptions[0] == 'getSubscriptions') 
 				$this->getSubscriptions();
+			elseif ($pathOptions[0] == 'toggleSub') 
+				$this->toggleSub();
 			elseif ($pathOptions[0] == 'unsubscribe') 
 				$this->unsubscribe();
 			else 
@@ -21,6 +25,8 @@
 		}
 
 		public function getForum() {
+			global $currentUser, $mongo;
+
 			$forumID = (int) $_POST['forumID'];
 			$forumManager = new ForumManager($forumID);
 			$forums = $forumManager->getForumsVars();
@@ -35,6 +41,7 @@
 						$forums[$hForumID]['latestPost'] = $forum['latestPost'];
 				}
 			}
+			$forums[$forumID]['subscribed'] = (bool) $mongo->forumSubs->findOne(['userID' => $currentUser->userID, 'type' => 'f', 'forumID' => $forumID], ['_id' => true]);
 			$returns = array('success' => true, 'forums' => $forums);
 			if (isset($_POST['getThreads']) && $_POST['getThreads']) {
 				$returns['threads'] = $forumManager->getThreads($_POST['page']);
@@ -65,7 +72,24 @@
 				$maxRead = $markedRead > $thread['lastRead']?$markedRead:$thread['lastRead'];
 				$thread['newPosts'] = $thread['lastPost']['datePosted'] > $maxRead?true:false;
 			}
-			displayJSON(array('success' => true, 'threads' => $threads));
+			displayJSON(['success' => true, 'threads' => $threads]);
+		}
+
+		public function markAsRead() {
+			global $currentUser, $mongo;
+			$forumID = (int) $_POST['forumID'];
+
+			$rChildren = $mongo->forums->find(['heritage' => $forumID], ['forumID' => true]);
+			$children = [];
+			foreach ($rChildren as $child) 
+				if ($child['forumID'] != $forumID) 
+					$children[] = $child['forumID'];
+
+			$mongo->forumsReadData->remove(['userID' => $currentUser->userID, 'forumID' => ['$in' => $children]]);
+			$markedRead = new MongoDate();
+			$mongo->forumsReadData->update(['userID' => $currentUser->userID, 'type' => 'forum', 'forumID' => $forumID], ['userID' => $currentUser->userID, 'type' => 'forum', 'forumID' => $forumID, 'markedRead' => $markedRead], ['upsert' => true]);
+
+			displayJSON(['success' => true, 'markedRead' => $markedRead->sec]);
 		}
 
 		public function getSubscriptions() {
@@ -106,6 +130,27 @@
 				}
 
 				displayJSON(array('success' => true, 'forums' => array_values($forums), 'threads' => array_values($threads)));
+			}
+		}
+
+		public function toggleSub() {
+			global $currentUser, $mongo;
+
+			$sub = ['type' => $_POST['type'], 'userID' => $currentUser->userID];
+			if (!is_string($sub['type']) || !in_array($sub['type'], ['f', 't'])) 
+				displayJSON(['failed' => true, 'error' => 'invalidType']);
+			if ($sub['type'] == 'f') 
+				$sub['forumID'] = (int) $_POST['typeID'];
+			else 
+				$sub['threadID'] = (int) $_POST['typeID'];
+
+			$exists = $mongo->forumSubs->findOne($sub, ['_id' => true]);
+			if ($exists) {
+				$mongo->forumSubs->remove(['_id' => $exists['_id']]);
+				displayJSON(['success' => true, 'subbed' => false]);
+			} else {
+				$mongo->forumSubs->insert($sub);
+				displayJSON(['success' => true, 'subbed' => true]);
 			}
 		}
 

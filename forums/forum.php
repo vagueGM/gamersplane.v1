@@ -9,8 +9,10 @@
 	if ($forumManager->getForumProperty($forumID, 'gameID')) {
 		$gameID = $forumManager->getForumProperty($forumID, 'gameID');
 		$fixedGameMenu = true;
-	} else
+	} else {
 		$gameID = false;
+		$fixedGameMenu = false;
+	}
 
 	if ($forumID) 
 		$dispatchInfo['title'] = $forumManager->getForumProperty($forumID, 'title').' | '.$dispatchInfo['title'];
@@ -99,11 +101,11 @@
 		</div>
 
 		<div id="forumLinks" class="clearfix">
-			<div id="forumOptions">
-				<p ng-if="loggedIn"><a href="/forums/process/read/<?=$forumID?>/">Mark Forum As Read</a></p>
-				<p ng-if="loggedIn"><a id="forumSub" href="/forums/process/subscribe/?forumID=<?=$forumID?>">{{subscribed?'Unsubscribe from':'Subscribe to'}} forum</a></p>
-				<p ng-if="loggedIn"><a href="/forums/subscriptions/">Manage Subscriptions</a></p>
+			<div ng-if="loggedIn" id="forumOptions">
+				<p><a ng-click="markAsRead()">Mark Forum As Read</a></p>
+				<p><a ng-click="toggleSub()">{{currentForum.subscribed?'Unsubscribe from':'Subscribe to'}} forum</a></p>
+				<p><a href="/forums/subscriptions/">Manage Subscriptions</a></p>
 			</div>
-			<paginate num-items="forums[forumID].threadCount" items-per-page="PAGINATE_PER_PAGE" current="pagination.current" change-func="getThreads" class="tr"></paginate>
+			<paginate num-items="currentForum.threadCount" items-per-page="PAGINATE_PER_PAGE" current="pagination.current" change-func="getThreads" class="tr"></paginate>
 		</div>
 <?	require_once(FILEROOT.'/footer.php'); ?>
