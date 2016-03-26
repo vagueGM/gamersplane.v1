@@ -26,15 +26,13 @@
 			$this->setVisibility($rollData['visibility']);
 		}
 
-		function forumSave($postID) {
-			global $mysql;
-
-			$addRoll = $mysql->prepare("INSERT INTO rolls SET postID = $postID, type = 'fate', reason = :reason, roll = :roll, indivRolls = :indivRolls, visibility = :visibility");
-			$addRoll->bindValue(':reason', $this->reason);
-			$addRoll->bindValue(':roll', $this->roll);
-			$addRoll->bindValue(':indivRolls', serialize($this->rolls));
-			$addRoll->bindValue(':visibility', $this->visibility);
-			$addRoll->execute();
+		function mongoFormat() {
+			return [
+				'type' => 'fate',
+				'reason' => $this->reason,
+				'rolls' => $this->rolls,
+				'visibility' => $this->visibility
+			];
 		}
 
 		function getResults() {

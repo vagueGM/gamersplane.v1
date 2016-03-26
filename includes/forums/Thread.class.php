@@ -11,6 +11,7 @@
 		protected $postCount = 0;
 		protected $lastPost = null;
 		protected $lastRead = 0;
+		protected $subscribed = false;
 
 		protected $posts = array();
 		protected $poll = null;
@@ -42,11 +43,13 @@
 		}
 
 		public function __get($key) {
-			if (property_exists($this, $key)) return $this->$key;
+			if (property_exists($this, $key)) 
+				return $this->$key;
 		}
 
 		public function __set($key, $value) {
-			if (property_exists($this, $key)) $this->$key = $value;
+			if (property_exists($this, $key)) 
+				$this->$key = $value;
 		}
 
 		public function getStates($key = null) {
@@ -116,6 +119,7 @@
 			$users = [];
 			foreach ($rUsers as $user) 
 				$users[$user['userID']] = [
+					'userID' => (int) $user['userID'],
 					'username' => $user['username'],
 					'avatarExt' => $user['avatarExt'],
 					'lastActivity' => time($user['lastActivity'])

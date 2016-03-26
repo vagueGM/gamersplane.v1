@@ -4,8 +4,6 @@
 	$forumID = intval($pathOptions[0]);
 	$forumManager = new ForumManager($forumID);
 
-	if (!$forumManager->displayCheck()) { header('Location: /forums'); exit; }
-
 	if ($forumManager->getForumProperty($forumID, 'gameID')) {
 		$gameID = $forumManager->getForumProperty($forumID, 'gameID');
 		$fixedGameMenu = true;
@@ -89,11 +87,11 @@
 							<a href="/forums/thread/{{thread.threadID}}/?view=lastPost#lastPost"><img src="/images/downArrow.png" title="Last post" alt="Last post"></a>
 						</div>
 						<a href="/forums/thread/{{thread.threadID}}/" ng-bind-html="thread.title"></a><br>
-						<span class="threadAuthor">by <a href="/user/{{thread.author.userID}}/" class="username" ng-bind-html="thread.author.username"></a> on <span>{{thread.datePosted * 1000 | amUtc | amLocal | amDateFormat: 'MMM D, YYYY h:mm a'}}</span></span>
+						<span class="threadAuthor">by <a href="/user/{{thread.author.userID}}/" class="username" ng-bind-html="thread.author.username"></a> on <span>{{thread.datePosted | amUtc | amLocal | amDateFormat: 'MMM D, YYYY h:mm a'}}</span></span>
 					</div>
 					<div class="td numPosts">{{thread.postCount}}</div>
 					<div class="td lastPost">
-						<a href="/user/{{thread.lastPost.author.userID}}/" class="username" ng-bind-html="thread.lastPost.author.username"></a><br><span class="datePosted">{{thread.lastPost.datePosted * 1000 | amUtc | amLocal | amDateFormat: 'MMM D, YYYY h:mm a'}}</span>
+						<a href="/user/{{thread.lastPost.author.userID}}/" class="username" ng-bind-html="thread.lastPost.author.username"></a><br><span class="datePosted">{{thread.lastPost.datePosted | amUtc | amLocal | amDateFormat: 'MMM D, YYYY h:mm a'}}</span>
 					</div>
 				</div>
 				<div ng-if="threads.length == 0" class="tr noThreads">No threads yet</div>

@@ -12,6 +12,8 @@
 				$this->getForum();
 			elseif ($pathOptions[0] == 'getThreads') 
 				$this->getThreads();
+			elseif ($pathOptions[0] == 'getThread') 
+				$this->getThread();
 			elseif ($pathOptions[0] == 'markAsRead') 
 				$this->markAsRead();
 			elseif ($pathOptions[0] == 'getSubscriptions') 
@@ -33,7 +35,7 @@
 			foreach ($forums as $iForumID => $forum) {
 				$forums[$iForumID]['totalThreadCount'] = 0;
 				$forums[$iForumID]['totalPostCount'] = 0;
-				$forum['latestPost']['datePosted'] = $forum['latestPost']['datePosted']->sec;
+				$forum['latestPost']['datePosted'] = $forum['latestPost']['datePosted']->sec * 1000;
 				foreach ($forum['heritage'] as $hForumID) {
 					$forums[$hForumID]['totalThreadCount'] += $forum['threadCount'];
 					$forums[$hForumID]['totalPostCount'] += $forum['postCount'];
@@ -70,6 +72,125 @@
 				$thread['newPosts'] = $thread['lastPost']['datePosted'] > $maxRead?true:false;
 			}
 			return $threads;
+		}
+
+		public function getThread() {
+			global $currentUser, $mongo;
+
+			$threadID = (int) $_POST['threadID'];
+			$threadManager = new ThreadManager($threadID);
+			$threadManager->setPage();
+			$posts = [];
+			$getChars = [];
+			$maxPost = 0;
+			$lastPost = $threadManager->thread->getLastPost('postID');
+			$lastRead = $threadManager->getThreadProperty('lastRead');
+			$newPost = false;
+			foreach ($threadManager->getPosts() as $post) {
+				$post = $post->getPostVars();
+				$post['message'] = printReady(BBCode2Html($post['message']));
+				if ($post['postAs'] && !in_array($post['postAs'], $getChars)) 
+					$getChars[] = $post['postAs'];
+				$post['newPost'] = false;
+				if (!$newPost && $post['datePosted'] > $lastRead) {
+					$post['newPost'] = true;
+					$newPost = true;
+				}
+				$post['lastPost'] = false;
+				if ($post['datePosted'] == $post['postID']) 
+					$post['lastPost'] = true;
+				$post['datePosted'] *= 1000;
+				$posts[] = $post;
+
+				if ($maxPost < $post['datePosted']) 
+					$maxPost = $post['datePosted'];
+			}
+			if ($maxPost > $lastRead) 
+				$mongo->forumsReadData->update(['threadID' => $threadID], [
+					'userID' => $currentUser->userID,
+					'type' => 'thread',
+					'threadID' => $threadID,
+					'forumID' => $threadManager->getThreadProperty('forumID'),
+					'lastRead' => new MongoDate($lastRead)
+				], ['upsert' => true]);
+			$rCharacters = $mongo->characters->find(['characterID' => ['$in' => $getChars]], ['characterID' => true, 'system' => true, 'name' => true]);
+			$characters = [];
+			foreach ($rCharacters as $character) {
+				$charObj = CharacterFactory::getCharacter($character['system']);
+				$characters[$character['characterID']] = [
+					'characterID' => $character['characterID'],
+					'name' => $character['name'],
+					'system' => $character['system'],
+					'avatar' => file_exists(FILEROOT."/characters/avatars/{$character['characterID']}.jpg")?"/characters/avatars/{$character['characterID']}.jpg":false,
+					'permissions' => $charObj->checkPermissions()
+				];
+			}
+			foreach ($posts as &$post) {
+				if ($post['postAs'] && $characters[$post['postAs']]) 
+					$post['postAs'] = $characters[$post['postAs']];
+				else 
+					$post['postAs'] = false;
+			}
+
+			$markedRead = $threadManager->forumManager->forums[$threadManager->getThreadProperty('forumID')]->getMarkedRead();
+			$subscribed = false;
+			$forumSub = (bool) $mongo->forumSubs->findOne(['userID' => $currentUser->userID, 'type' => 'f', 'forumID' => $threadManager->getThreadProperty('forumID')], ['_id' => true]);
+			if (!$forumSub) {
+				$threadSub = (bool) $mongo->forumSubs->findOne(['userID' => $currentUser->userID, 'type' => 't', 'threadID' => $threadID], ['_id' => true]);
+				if ($threadSub) 
+					$subscribed = 't';
+			} else 
+				$subscribed = 'f';
+			$poll = null;
+			try {
+				$poll = new ForumPoll($this->threadID);
+				if ($poll->threadID == null) 
+					$poll = null;
+				else {
+					$poll = $poll->getPollVars();
+					$poll['question'] = printReady($poll['question']);
+				}
+			} catch (Exception $e) {}
+
+			if ($threadManager->isGameForum()) {
+				$gameID = (int) $threadManager->getForumProperty('gameID');
+				$game = $mongo->games->findOne(array('gameID' => $gameID), array('system' => true, 'players' => true));
+				$isGM = false;
+				foreach ($game['players'] as $player) {
+					if ($player['user']['userID'] == $currentUser->userID) 
+						if ($player['isGM']) 
+							$isGM = true;
+					if ($player['isGM']) 
+						$gms[] = $player['user']['userID'];
+				}
+				$game = [
+					'gameID' => $gameID,
+					'isGM' => $isGM,
+					'gms' => $gms
+				];
+			} else 
+				$game = null;
+
+			$thread = [
+				'threadID' => $threadID,
+				'title' => $threadManager->getThreadProperty('title'),
+				'forumID' => (int) $threadManager->getThreadProperty('forumID'),
+				'forumHeritage' => $threadManager->forumManager->getHeritage(),
+				'sticky' => (bool) $threadManager->thread->getStates('sticky'),
+				'locked' => (bool) $threadManager->thread->getStates('locked'),
+				'allowRolls' => (bool) $threadManager->getThreadProperty('allowRolls'),
+				'allowDraws' => (bool) $threadManager->getThreadProperty('allowDraws'),
+				'postCount' => $threadManager->getThreadProperty('postCount'),
+				'lastRead' => $threadManager->getThreadProperty('lastRead'),
+				'subscribed' => $subscribed,
+				'permissions' => $threadManager->getPermissions(),
+				'poll' => $poll,
+				'posts' => $posts,
+				'characters' => $characters,
+				'game' => $game
+			];
+
+			displayJSON(['success' => true, 'thread' => $thread]);
 		}
 
 		public function markAsRead() {

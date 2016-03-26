@@ -35,13 +35,19 @@
 						continue;//throw new Exception('Missing data for '.$this->forumID.': '.$key);
 					$this->$key = $loadData[$key];
 				}
+				if ($this->author['avatarExt']) {
+					$avatar = User::getAvatar($this->author['userID'], $this->author['avatarExt']);
+					$userAvatarSize = getimagesize(FILEROOT.$avatar);
+					$this->author['avatar'] = [
+						'path' => $avatar,
+						'width' => (int) $userAvatarSize[0],
+						'height' => (int) $userAvatarSize[1]
+					];
+					unset($this->author['avatarExt']);
+				} else 
+					$this->author['avatarExt'] = null;
 				$this->datePosted = $this->datePosted->sec;
 				$this->lastEdit = $this->lastEdit->sec;
-				$this->author = new stdClass();
-				$this->author->userID = $loadData['authorID'];
-				$this->author->username = $loadData['author']['username'];
-				$this->author->avatarExt = $loadData['author']['avatarExt'];
-				$this->author->lastActivity = $loadData['author']['lastActivity'];
 
 				if (sizeof($loadData['rolls'])) {
 					foreach ($loadData['rolls'] as $roll) {
@@ -193,23 +199,6 @@
 				$updatePost->execute();
 			}
 
-			foreach ($this->rolls as $roll) 
-				$roll->forumSave($this->postID);
-
-			if (sizeof($this->draws)) {
-				$addDraw = $mysql->prepare("INSERT INTO deckDraws SET postID = {$this->postID}, deckID = :deckID, type = :type, cardsDrawn = :cardsDrawn, reveals = :reveals, reason = :reason");
-				foreach($this->draws as $deckID => $draw) {
-					$gameID = (int) $mysql->query("SELECT f.gameID FROM threads t INNER JOIN forums f ON f.forumID = t.forumID WHERE t.threadID = {$this->threadID} LIMIT 1")->fetchColumn();
-					$mongo->games->update(array('gameID' => $gameID, 'decks.deckID' => (int) $deckID), array('$inc' => array('decks.$.position' => (int) $draw['draw'])));
-					$addDraw->bindValue('deckID', $deckID);
-					$addDraw->bindValue('type', $draw['type']);
-					$addDraw->bindValue('cardsDrawn', $draw['cardsDrawn']);
-					$addDraw->bindValue('reveals', str_repeat('0', $draw['draw']));
-					$addDraw->bindValue('reason', $draw['reason']);
-					$addDraw->execute();
-				}
-			}
-
 			return $this->postID;
 		}
 
@@ -223,8 +212,19 @@
 			$mysql->query('DELETE FROM posts, rolls, deckDraws USING posts LEFT JOIN rolls ON posts.postID = rolls.postID LEFT JOIN deckDraws ON posts.postID = deckDraws.postID WHERE posts.postID = '.$this->postID);
 		}
 
-		public function dumpObj() {
-			var_dump($this);
+		public function getPostVars() {
+			$post = get_object_vars($this);
+			if (sizeof($post['rolls'])) {
+				$post['rolls'] = [];
+				foreach ($this->rolls as $roll) 
+					$post['rolls'][] = $roll->mongoFormat();
+			} else 
+				$post['rolls'] = null;
+
+			if (sizeof($post['draws']) == 0) 
+				$post['draws'] = null;
+
+			return $post;
 		}
 	}
 ?>

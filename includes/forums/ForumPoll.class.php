@@ -9,26 +9,38 @@
 		protected $allowRevoting = false;
 
 		public function __construct($threadID = null) {
-			if ($threadID == null) return true;
+			if ($threadID == null) 
+				return true;
 
-			global $mysql, $currentUser;
+			global $mongo, $currentUser;
 
 			$this->threadID = (int) $threadID;
-			$poll = $mysql->query("SELECT p.poll, p.optionsPerUser, p.pollLength, p.allowRevoting FROM forums_polls p WHERE p.threadID = {$this->threadID}");
-			if ($poll->rowCount()) {
+			$poll = $mongo->polls->findOne(['threadID' => $this->threadID]);
+			if ($poll) {
 				$poll = $poll->fetch();
-				$this->question = $poll['poll'];
+				$this->question = $poll['question'];
 				$this->optionsPerUser = $poll['optionsPerUser'];
 				$this->pollLength = $poll['pollLength'];
 				$this->allowRevoting = $poll['allowRevoting'];
-
-				$options = $mysql->query("SELECT po.pollOptionID, po.option, IFNULL(v.votes, 0) votes, IF(pv.votedOn IS NOT NULL, 1, 0) voted FROM forums_pollOptions po LEFT JOIN (SELECT pollOptionID, COUNT(pollOptionID) votes FROM forums_pollVotes GROUP BY pollOptionID) v ON po.pollOptionID = v.pollOptionID LEFT JOIN forums_pollVotes pv ON po.pollOptionID = pv.pollOptionID AND userID = {$currentUser->userID} WHERE po.threadID = {$this->threadID}");
-				if ($options->rowCount()) {
-					$options = $options->fetchAll(PDO::FETCH_GROUP|PDO::FETCH_OBJ);
-					array_walk($options, function (&$value, $key) { $value = $value[0]; });
-					$this->options = $options;
+				$this->options = $poll['options'];
+				foreach ($this->options as &$option) {
+					$numVotes = 0;
+					$voted = false;
+					foreach ($option['votes'] as $vote) {
+						if ($vote['userID'] == null) 
+							break;
+						if ($vote['userID'] == $currentUser->userID) 
+							$voted = true;
+						$numVotes++;
+					}
+					$option = [
+						'option' => $option['option'],
+						'numVotes' => $numVotes,
+						'voted' => $voted
+					];
 				}
-			} else throw new Exception('No poll');
+			} else 
+				throw new Exception('No poll');
 		}
 
 		public function __get($key) {
@@ -128,9 +140,10 @@
 		}
 
 		public function getVotesCast() {
-			$cast = array();
+			$cast = 0;
 			foreach ($this->options as $option) 
-				if ($option->voted) $cast[] = $option->pollOptionID;
+				if ($option['voted']) 
+					$cast++;
 			return $cast;
 		}
 
@@ -150,7 +163,8 @@
 		public function getVoteMax() {
 			$max = 0;
 			foreach ($this->options as $option) 
-				if ($option->votes > $max) $max = $option->votes;
+				if ($option['numVotes'] > $max) 
+					$max = $option['numVotes'];
 			return $max;
 		}
 
@@ -159,6 +173,10 @@
 
 			$mysql->query("DELETE FROM po, pv USING forums_pollOptions po LEFT JOIN forums_pollVotes pv ON po.pollOptionID = pv.pollOptionID WHERE po.threadID = {$this->threadID}");
 			$mysql->query("DELETE FROM forums_polls WHERE threadID = {$this->threadID}");
+		}
+
+		public function getPollVars() {
+			return get_object_vars($this);
 		}
 	}
 ?>

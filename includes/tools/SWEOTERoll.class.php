@@ -45,7 +45,13 @@
 			$this->setVisibility($rollData['visibility']);
 		}
 
-		function forumSave($postID) {
+		function mongoFormat() {
+			return [
+				'type' => 'sweote',
+				'reason' => $this->reason,
+				'rolls' => $this->rolls,
+				'visibility' => $this->visibility
+			];
 		}
 
 		function getResults() {

@@ -1,9 +1,9 @@
 <?
-	require('../includes/connect.php');
+	require_once('../includes/connect.php');
 	define('PVAR', 'xU3Fh9XLo21mlHuk6H31');
 	define('PAGINATE_PER_PAGE', 20);
 	define('HERITAGE_PAD', 4);
-	require('functions.php');
+	require_once('functions.php');
 	define('APIROOT', $_SERVER['DOCUMENT_ROOT']);
 	define('FILEROOT', $_SERVER['DOCUMENT_ROOT'].'/..');
 	$permissionTypes = array('read' => 'Read', 'write' => 'Write', 'editPost' => 'Edit Post', 'deletePost' => 'Delete Post', 'createThread' => 'Create Thread', 'deleteThread' => 'Delete Thread', 'addRolls' => 'Add Rolls', 'addDraws' => 'Add Draws', 'moderate' => 'Moderate');
@@ -11,10 +11,11 @@
 	$ext = end($ext);
 	define('COOKIE_DOMAIN', '.gamersplane.'.$ext);
 	startSession();
-	require('../includes/User.class.php');
-	require_once(FILEROOT.'/javascript/markItUp/markitup.bbcode-parser.php');
+	require_once('../includes/User.class.php');
+	require_once('../javascript/markItUp/markitup.bbcode-parser.php');
 	require_once('../includes/HistoryLogger.class.php');
 	require_once('../includes/HistoryCache.class.php');
+	require_once('../includes/characters/CharacterFactory.class.php');
 
 	error_reporting(E_ALL & ~E_NOTICE & ~E_STRICT);
 

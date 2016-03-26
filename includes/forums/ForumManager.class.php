@@ -263,6 +263,13 @@
 			else return null;
 		}
 
+		public function getHeritage() {
+			$heritage = [];
+			foreach ($this->forums[$this->currentForum]->heritage as $hForumID) 
+				$heritage[] = ['forumID' => $hForumID, 'title' => $this->forums[$hForumID]->title];
+			return $heritage;
+		}
+
 		public function displayBreadcrumbs() {
 ?>
 				<div id="breadcrumbs">

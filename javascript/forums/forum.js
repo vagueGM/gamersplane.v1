@@ -13,7 +13,7 @@ controllers.controller('forum', ['$scope', 'Range', 'CurrentUser', 'ForumsServic
 		$scope.forums = {};
 		$scope.threads = [];
 		$scope.mainStructure = [];
-		ForumsService.getForum(pathElements[1], true, $scope.pagination.current).then(function (data) {
+		ForumsService.getForum($scope.forumID, true, $scope.pagination.current).then(function (data) {
 			$scope.forums = data.forums;
 			$scope.threads = data.threads?data.threads:[];
 			$scope.currentForum = $scope.forums[$scope.forumID];

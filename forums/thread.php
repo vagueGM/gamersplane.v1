@@ -3,10 +3,7 @@
 	addPackage('forum');
 	
 	$threadID = intval($pathOptions[1]);
-	if (!$threadID) { header('Location: /forums'); exit; }
-	
 	$threadManager = new ThreadManager($threadID);
-	if ($threadManager->getPermissions('read') == false) { header('Location: /403'); exit; }
 
 	$gameID = false;
 	$isGM = false;
@@ -29,51 +26,32 @@
 	} else 
 		$fixedGameMenu = false;
 
-	$threadManager->setPage();
-	$threadManager->getPosts();
-
 	$dispatchInfo['title'] = $threadManager->getThreadProperty('title').' | '.$dispatchInfo['title'];
 	$dispatchInfo['description'] = $threadManager->getKeyPost()->message;
 ?>
 <?	require_once(FILEROOT.'/header.php'); ?>
-		<h1 class="headerbar"><?=$threadManager->getThreadProperty('title')?></h1>
-		<div class="hbMargined">
+		<h1 class="headerbar" skew-element>{{thread.title}}</h1>
+		<div hb-margined>
 			<div id="threadMenu" class="clearfix">
 				<div class="leftCol">
-					<a href="/forums/<?=$threadManager->getThreadProperty('forumID')?>/">Back to the forums</a>
+					<div id="breadcrumbs">
+						<a ng-repeat="hForum in thread.forumHeritage" href="/forums/{{hForum.forumID}}/" ng-bind-html="hForum.title"></a>
+					</div>
+					<a href="/forums/{{thread.forumID}}/">Back to the forums</a>
 				</div>
 				<div class="rightCol alignRight">
-<?
-	if ($loggedIn) {
-		$forumSubbed = $mysql->query("SELECT userID FROM forumSubs WHERE userID = {$currentUser->userID} AND type = 'f' AND ID = {$threadManager->getThreadProperty('forumID')}");
-		if (!$forumSubbed->rowCount()) {
-			$isSubbed = $mysql->query("SELECT userID FROM forumSubs WHERE userID = {$currentUser->userID} AND type = 't' AND ID = {$threadID}");
-?>
-					<p class="threadSub"><a id="forumSub" href="/forums/process/subscribe/?threadID=<?=$threadID?>"><?=$isSubbed->rowCount()?'Unsubscribe from':'Subscribe to'?> thread</a></p>
-<?
-		}
-	}
-	if ($threadManager->getPermissions('moderate')) {
-?>
-					<form id="threadOptions" method="post" action="/forums/process/modThread/">
-<?
-	$sticky = $threadManager->thread->getStates('sticky')?'unsticky':'sticky';
-	$lock = $threadManager->thread->getStates('locked')?'unlock':'lock';
-?>
-						<input type="hidden" name="threadID" value="<?=$threadID?>">
-						<button type="submit" name="sticky" title="<?=ucwords($sticky)?> Thread" alt="<?=ucwords($sticky)?> Thread" class="<?=$sticky?>"></button>
-						<button type="submit" name="lock" title="<?=ucwords($lock)?> Thread" alt="<?=ucwords($lock)?> Thread" class="<?=$lock?>"></button>
+					<p ng-if="loggedIn && thread.subscribed != 'f'" class="threadSub"><a id="forumSub" href="/forums/process/subscribe/{{threadID}}">{{thread.subscribed == 't'?'Unsubscribe from':'Subscribe to'}} thread</a></p>
+					<form id="threadOptions" ng-if="thread.permissions.moderate" method="post" action="/forums/process/modThread/">
+						<button type="submit" name="sticky" title="{{thread.sticky?'Uns':'S'}}ticky Thread" alt="{{thread.sticky?'Uns':'S'}}ticky Thread" ng-class="thread.sticky?'unsticky':'sticky'"></button>
+						<button type="submit" name="lock" title="{{thread.sticky?'Unl':'L'}}ock Thread" alt="{{thread.sticky?'Unl':'L'}}ock Thread" ng-class="thread.sticky?'unlock':'lock'"></button>
 					</form>
-<?	} ?>
-<?	if ($threadManager->getPermissions('write')) { ?>
-					<a href="/forums/post/<?=$threadID?>/" class="fancyButton">Reply</a>
-<?	} ?>
+					<a ng-if="thread.permissions.write" href="/forums/post/<?=$threadID?>/" class="fancyButton" skew-element>Reply</a>
 				</div>
 			</div>
 <?	if (!$threadManager->getThreadProperty('states[locked]') && $threadManager->getPoll()) { ?>
-			<form id="poll" method="post" action="/forums/process/vote/">
-				<input type="hidden" name="threadID" value="<?=$threadID?>">
-				<p id="poll_question"><?=printReady($threadManager->getPollProperty('question'))?></p>
+			<form id="poll" ng-if="!thread.locked && thread.poll" method="post" action="/forums/process/vote/">
+				<input type="hidden" name="threadID" value="{{threadID}}">
+				<p id="poll_question" ng-bind-html="thread.poll.question"></p>
 <? 
 		$castVotes = $threadManager->getVotesCast();
 		$allowVote = sizeof($castVotes) && $threadManager->getPollProperty('allowRevoting') || sizeof($castVotes) == 0;
@@ -108,76 +86,14 @@
 <?
 	}
 	
-	$postCount = 1;
-	$forumOptions = array('showAvatars' => 1, 'postSide'=> 'r');
-	if ($loggedIn) 
-		$forumOptions['postSide'] = $currentUser->postSide;
-	if ($forumOptions['postSide'] == 'r') 
-		$postSide = 'Right';
-	else 
-		$postSide = 'Left';
-	
-	$characters = array();
 	$newPostMarked = false;
-	if ($threadManager->getFirstPostID() > $threadManager->getThreadLastRead()) 
-		$hitLastRead = true;
-	$lastPostID = 0;
-	if (sizeof($threadManager->getPosts())) {
-		foreach ($threadManager->getPosts() as $post) {
-			$lastPostID = $post->getPostID();
-			if ($post->getPostAs()) {
-				if (isset($characters[$post->getPostAs()]) || $characters[$post->getPostAs()] = new $charClass($post->getPostAs())) {
-					$postAsChar = true;
-					$character = $characters[$post->getPostAs()];
-				} else 
-					$postAsChar = false;
-			} else 
-				$postAsChar = false;
 ?>
-			<div class="postBlock post<?=$postSide?><?=$postAsChar?' postAsChar'.($character->getAvatar()?' withCharAvatar':''):''?> clearfix">
-				<a name="p<?=$post->getPostID()?>"></a>
-<?
-			if (!$newPostMarked && ($post->getPostID() > $threadManager->getThreadLastRead() || $threadManager->thread->getLastPost('postID') == $post->getPostID())) {
-				$newPostMarked = true;
-?>
-				<a name="newPost"></a>
-<?
-			}
-			if ($threadManager->thread->getLastPost('postID') == $post->getPostID()) {
-?>
-				<a name="lastPost"></a>
-<?			} ?>
+			<div ng-repeat="post in thread.posts" class="postBlock clearfix" ng-class="{ 'postLeft': postSide == 'l', 'postRight': postSide == 'r', 'postAsChar': post.postAs, 'withCharAvatar': post.postAs && post.postAs.avatar }">
+				<a name="p{{post.postID}}"></a>
+				<a ng-if="post.newPost" name="newPost"></a>
+				<a ng-if="post.lastPost" name="lastPost"></a>
 				<div class="posterDetails">
-					<div class="avatar"><div>
-<?
-			if ($postAsChar) 
-				$character->load();
-			if ($postAsChar && $character->getAvatar()) {
-				if ($character->checkPermissions()) {
-?>
-						<a href="/characters/<?=$character::SYSTEM?>/<?=$character->getID()?>/"><img src="<?=$character->getAvatar()?>"></a>
-<?				} else { ?>
-						<img src="<?=$character->getAvatar()?>">
-<?
-				}
-				$userAvatarSize = getimagesize(FILEROOT.User::getAvatar($post->author->userID, $post->author->avatarExt));
-				$xRatio = 40 / $userAvatarSize[0];
-				$yRatio = 40 / $userAvatarSize[1];
-				
-				if ($userAvatarSize[0] <= 40 && $userAvatarSize[1] <= 40) {
-					$finalWidth = $userAvatarSize[0];
-					$finalHeight = $userAvatarSize[1];
-				} elseif (($xRatio * $userAvatarSize[1]) < 40) {
-					$finalWidth = 40;
-					$finalHeight = ceil($xRatio * $userAvatarSize[1]);
-				} else {
-					$finalWidth = ceil($yRatio * $userAvatarSize[0]);
-					$finalHeight = 40;
-				}
-			}
-?>
-						<a href="/user/<?=$post->author->userID?>/" class="userAvatar"<?=$postAsChar && $character->getAvatar()?' style="top: -'.($finalHeight / 2).'px; right: -'.($finalWidth / 2).'px;"':''?>><img src="<?=User::getAvatar($post->author->userID, $post->author->avatarExt)?>"></a>
-					</div></div>
+					<avatar user="post.author" char="post.postAs"></avatar>
 <?
 			if ($postAsChar) {
 				$character->getForumTop($post->author, in_array($post->author->userID, $gms));
@@ -265,10 +181,8 @@
 <?
 			$postCount += 1;
 			if ($forumOptions['postSide'] == 'c') $postSide = $postSide == 'Right'?'Left':'Right';
-		}
 
 		$threadManager->displayPagination();
-	}
 	
 	if ($threadManager->getPermissions('moderate')) {
 ?>
@@ -328,8 +242,6 @@
 		echo "\t\t\t<h2 class=\"alignCenter\">Thread locked</h2>\n";
 	else 
 		echo "\t\t\t<h2 class=\"alignCenter\">You do not have permission to post in this thread.</h2>\n";
-
-	$threadManager->updateLastRead($lastPostID);
 	
 	require_once(FILEROOT.'/footer.php');
 ?>

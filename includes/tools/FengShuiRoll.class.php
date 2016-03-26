@@ -1,6 +1,6 @@
 <?
 	class FengShuiRoll extends Roll {
-		protected $type;
+		protected $modifier;
 		protected $die;
 
 		function __construct() {
@@ -8,15 +8,15 @@
 		}
 
 		function newRoll($actionValue, $options = array()) {
-			$type = $options[0];
+			$modifier = $options[0];
 			$actionValue = intval($actionValue);
 			$this->roll = $actionValue > 0?$actionValue:0;
-			$this->type = $type;
+			$this->modifier = $modifier;
 		}
 
 		function roll() {
 			$this->rolls = array('p' => array(), 'n' => array(), 'e' => null);
-			if ($this->type == 'standard' || $this->type == 'fortune') {
+			if ($this->modifier == 'standard' || $this->modifier == 'fortune') {
 				do {
 					$roll = $this->die->roll();
 					$this->rolls['p'][] = $roll;
@@ -25,9 +25,9 @@
 					$roll = $this->die->roll();
 					$this->rolls['n'][] = $roll;
 				} while ($roll == 6);
-				if ($this->type == 'fortune') 
+				if ($this->modifier == 'fortune') 
 					$this->rolls['e'] = $this->die->roll();
-			} elseif ($this->type == 'closed') {
+			} elseif ($this->modifier == 'closed') {
 				$this->rolls['p'][] = $this->die->roll();
 				$this->rolls['n'][] = $this->die->roll();
 			}
@@ -36,21 +36,21 @@
 		function forumLoad($rollData) {
 			$this->rollID = $rollData['rollID'];
 			$this->reason = $rollData['reason'];
-			$this->newRoll($rollData['roll']);
-			$this->rolls = unserialize($rollData['indivRolls']);
+			$this->rolls = ($rollData['rolls']);
+			$this->roll = $rollData['actionValue'];
+			$this->modifier = $rollData['modifier'];
 			$this->setVisibility($rollData['visibility']);
 		}
 
-		function forumSave($postID) {
-			global $mysql;
-
-			$addRoll = $mysql->prepare("INSERT INTO rolls SET postID = $postID, type = 'fengshui', reason = :reason, roll = :roll, indivRolls = :indivRolls, visibility = :visibility, extras = :extras");
-			$addRoll->bindValue(':reason', $this->reason);
-			$addRoll->bindValue(':roll', $this->roll);
-			$addRoll->bindValue(':indivRolls', serialize($this->rolls));
-			$addRoll->bindValue(':visibility', $this->visibility);
-			$addRoll->bindValue(':extras', $this->type);
-			$addRoll->execute();
+		function mongoFormat() {
+			return [
+				'type' => 'fengshui',
+				'reason' => $this->reason,
+				'rolls' => $this->rolls,
+				'actionValue' => $this->roll,
+				'modifier' => $this->modifier,
+				'visibility' => $this->visibility
+			];
 		}
 
 		function getResults() {
@@ -71,7 +71,7 @@
 				if ($this->visibility <= 1 || $showAll) {
 					echo '<div class="rollResults">';
 					echo $this->roll;
-					if ($this->type != 'closed') {
+					if ($this->modifier != 'closed') {
 						echo ' + [ '.implode(', ', $this->rolls['p']).' ]';
 						echo ' - [ '.implode(', ', $this->rolls['n']).' ]';
 						if ($this->rolls['e']) 

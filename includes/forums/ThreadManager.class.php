@@ -19,6 +19,8 @@
 				$this->thread = new Thread($this->thread);
 
 				$this->forumManager = new ForumManager($this->thread->forumID, ForumManager::NO_CHILDREN|ForumManager::NO_NEWPOSTS);
+				$markedRead = $this->forumManager->forums[$this->getThreadProperty('forumID')]->getMarkedRead();
+				$this->lastRead = $markedRead > $this->getThreadProperty('lastRead')?$markedRead:$this->getThreadProperty('lastRead');
 			} elseif (intval($forumID)) {
 				$this->thread = new Thread();
 				$this->thread->forumID = $forumID;

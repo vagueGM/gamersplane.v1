@@ -233,6 +233,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 		}
 		return returnImg?"<img src=\"/images/sleeping.png\" title=\"" + diffStr + "\" alt=\"" + diffStr + "\">":diffStr;
 	};
+	this.avatarPath = function (userID, ext) { return '/users/avatars/' + userID + '.' + ext; };
 }]).service('SystemsService', ['$http', function ($http) {
 	this.systems = {};
 	this.init = function () {
@@ -297,6 +298,9 @@ app.config(['$httpProvider', function ($httpProvider) {
 			page = 1;
 		return $http.post(API_HOST + '/forums/getThreads/', { forumID: forumID, page: page }).then(function (data) { return data.data; });
 	};
+	this.getThread = function (threadID, page) {
+		return $http.post(API_HOST + '/forums/getThread/', { threadID: threadID, page: page }).then(function (data) { return data.data; });
+	}
 	this.markAsRead = function (forumID) {
 		return $http.post(API_HOST + '/forums/markAsRead/', { forumID: forumID }).then(function (data) { return data.data; });
 	};
@@ -463,6 +467,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 				bArray.push(copyObject(blanks[key]));
 		}
 	};
+	this.avatarPath = function (characterID) { return '/characters/avatars/' + characterID + '.jpg'; };
 }]).service('Range', function () {
 	this.get = function (from, to, incBy) {
 		incBy = parseInt(incBy);
@@ -1051,6 +1056,53 @@ app.config(['$httpProvider', function ($httpProvider) {
 			});
 		}
 	}
+}]).directive('avatar', ['CharactersService', function (CharactersService) {
+	return {
+		restrict: 'E',
+		templateUrl: '/angular/directives/avatar.php',
+		scope: {
+			'user': '=',
+			'char': '='
+		},
+		link: function (scope, element, attrs) {
+			scope.showChar = false;
+			if (scope.char) {
+				if (scope.user.avatar.width <= 40 && scope.user.avatar.height <= 40) {
+					finalWidth = scope.user.avatar.width;
+					finalHeight = scope.user.avatar.height;
+				} else {
+					xRatio = 40 / scope.user.avatar.width;
+					yRatio = 40 / scope.user.avatar.height;
+
+					if ((xRatio * scope.user.avatar.height) <= 0) {
+						finalWidth = 40;
+						finalHeight = Math.ceil(xRatio * scope.user.avatar.height);
+					} else {
+						finalWidth = Math.ceil(yRatio * scope.user.avatar.width);
+						finalHeight = 40;
+					}
+				}
+
+				element.find('.userAvatar').css({ top: finalHeight / -2, right: finalWidth / -2 });
+			}
+
+				// $userAvatarSize = getimagesize(FILEROOT.User::getAvatar($post->author->userID, $post->author->avatarExt));
+				// $xRatio = 40 / $userAvatarSize[0];
+				// $yRatio = 40 / $userAvatarSize[1];
+				
+				// if ($userAvatarSize[0] <= 40 && $userAvatarSize[1] <= 40) {
+				// 	$finalWidth = $userAvatarSize[0];
+				// 	$finalHeight = $userAvatarSize[1];
+				// } elseif (($xRatio * $userAvatarSize[1]) < 40) {
+				// 	$finalWidth = 40;
+				// 	$finalHeight = ceil($xRatio * $userAvatarSize[1]);
+				// } else {
+				// 	$finalWidth = ceil($yRatio * $userAvatarSize[0]);
+				// 	$finalHeight = 40;
+				// }
+
+		}
+	};
 }]).filter('trustHTML', ['$sce', function($sce){
 	return function(text) {
 		if (typeof text != 'string') 

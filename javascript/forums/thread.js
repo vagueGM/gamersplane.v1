@@ -24,13 +24,24 @@ $(function() {
 	});
 });
 
-controllers.controller('forum', ['$scope', 'Range', 'CurrentUser', 'ForumsService', function ($scope, Range, CurrentUser, ForumsService) {
+controllers.controller('thread', ['$scope', 'Range', 'CurrentUser', 'ForumsService', function ($scope, Range, CurrentUser, ForumsService) {
 	$scope.PAGINATE_PER_PAGE = PAGINATE_PER_PAGE;
 	$scope.$emit('pageLoading');
 	pathElements = getPathElements();
-	$scope.threadID = pathElements[1]?parseInt(pathElements[1]):0;
+	$scope.threadID = pathElements[2]?parseInt(pathElements[2]):0;
 	$scope.posts = [];
 	$scope.pagination = { current: parseInt($.urlParam('page')) > 0?parseInt($.urlParam('page')):1 };
+	$scope.showAvatars = false;
+	$scope.postSide = 'l';
 	CurrentUser.load().then(function (loggedIn) {
+		$scope.loggedIn = loggedIn;
+		$scope.currentUser = CurrentUser.get();
+		if ($scope.currentUser.usermeta.postSide == 'r') 
+			$scope.postSide = 'r';
+		$scope.$emit('pageLoading');
+		$scope.thread = {};
+		ForumsService.getThread($scope.threadID, $scope.pagination.current).then(function (data) {
+			$scope.thread = data.thread;
+		});
 	});
-});
+}]);
