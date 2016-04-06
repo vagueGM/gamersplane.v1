@@ -24,7 +24,7 @@
 					<div class="hbdMargined">
 <?	foreach (wod_consts::getSkillNames() as $category => $skillSet) { ?>
 						<div id="skills_mental" class="skillSet">
-							<h3>Mental</h3>
+							<h3><?=$category?></h3>
 							<p>(-<?=$category == 'Mental'?3:1?> unskilled)</p>
 <?		foreach ($skillSet as $skill) { ?>
 							<div class="tr">

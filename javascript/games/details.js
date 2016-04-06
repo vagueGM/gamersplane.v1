@@ -4,7 +4,7 @@ controllers.controller('games_details', ['$scope', '$http', '$sce', '$filter', '
 		CurrentUser = CurrentUser.get();
 		$scope.ngInterface = '';
 		$scope.skewedOut = {};
-		$scope.loggedIn = CurrentUser.loggedOut?false:true;
+		$scope.loggedIn = !CurrentUser || CurrentUser.loggedOut?false:true;
 		$scope.CurrentUser = CurrentUser;
 		$scope.systems = [];
 		$scope.deckTypes = {};
@@ -31,9 +31,7 @@ controllers.controller('games_details', ['$scope', '$http', '$sce', '$filter', '
 					$scope.systems[val.shortName] = val.fullName;
 				});
 			});
-			ToolsService.getDeckTypes().then(function (data) {
-				$scope.deckTypes = data.types;
-			})
+			$scope.deckTypes = ToolsService.deckTypes;
 			GamesService.getDetails($scope.gameID).then(function (data) {
 				if (data.success) {
 					$scope.details = data.details;
@@ -42,7 +40,7 @@ controllers.controller('games_details', ['$scope', '$http', '$sce', '$filter', '
 					$scope.decks = data.decks;
 					$scope.playersAwaitingApproval = $filter('filter')($scope.players, { approved: false }).length > 0?true:false;
 					$scope.details.playersInGame = $scope.players.length - 1;
-					$scope.pendingInvite = $filter('filter')($scope.invites.pending, { userID: CurrentUser.userID }, true).length  == 1?true:false;
+					$scope.pendingInvite = $filter('filter')($scope.invites.pending, { userID: CurrentUser?CurrentUser.userID:0 }, true).length  == 1?true:false;
 					for (key in $scope.players) {
 						if (CurrentUser && $scope.players[key].user.userID == CurrentUser.userID) {
 							$scope.inGame = true;
