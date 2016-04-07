@@ -106,5 +106,5 @@
 			
 			<div id="notes" class="marginTop">
 				<h2 id="notesTitle" class="headerbar hbDark">Notes</h3>
-				<div class="hbdMargined"><?=$this->getNotes()?></div>
+				<div class="hbdMargined"><?=printReady($this->getNotes())?></div>
 			</div>
