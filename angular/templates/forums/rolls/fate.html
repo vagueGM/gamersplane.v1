@@ -1,0 +1,10 @@
+<div class="roll">
+	<p class="rollString">
+		<span ng-if="roll.visibility > 0 && showHidden">{{rollVisibilityText[roll.visibility]}}</span>
+		<span ng-class="{ 'hidden': roll.visibility == 3 && showHidden }">{{roll.visibility <= 2 || showHidden?roll.reason:'Hidden Roll'}}</span>
+	</p>
+	<div ng-if="roll.visibility <= 1 || showHidden" class="rollResults">
+		<div ng-repeat="iRoll in roll.rolls track by $index" class="fate_dice" ng-class="{ 'negative': iRoll == -1, 'blank': iRoll == 0, 'positive': iRoll == 1 }"><div ng-if="roll.visibility == 0 || showHidden"></div></div>
+	</div>
+	<p ng-if="roll.visibility == 0 || showHidden" ng-class="{ 'hidden': roll.visibility > 0 }">{{roll.counts[1]}} Positive, {{roll.counts[0]}} Blank, {{roll.counts[-1]}} Negative - Total: {{roll.total | showSign}}</p>
+</div>

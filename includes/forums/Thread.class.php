@@ -115,14 +115,14 @@
 			$getUsers = [];
 			foreach ($posts as $post) 
 				$getUsers[] = $post['authorID'];
-			$rUsers = $mysql->query("SELECT u.userID, u.username, um.metaValue avatarExt, u.lastActivity FROM users u INNER JOIN usermeta um ON u.userID = um.userID AND um.metaKey = 'avatarExt' WHERE u.userID IN (".implode(',', $getUsers).")");
+			$rUsers = $mysql->query("SELECT u.userID, u.username, um.metaValue avatarExt, u.lastActivity FROM users u LEFT JOIN usermeta um ON u.userID = um.userID AND um.metaKey = 'avatarExt' WHERE u.userID IN (".implode(',', $getUsers).")");
 			$users = [];
 			foreach ($rUsers as $user) 
 				$users[$user['userID']] = [
 					'userID' => (int) $user['userID'],
 					'username' => $user['username'],
 					'avatarExt' => $user['avatarExt'],
-					'lastActivity' => time($user['lastActivity'])
+					'lastActivity' => strtotime($user['lastActivity'])
 				];
 			foreach ($posts as $post) 
 				$this->posts[$post['postID']] = new Post(array_merge($post, ['author' => $users[$post['authorID']]]));

@@ -257,7 +257,29 @@ app.config(['$httpProvider', function ($httpProvider) {
 		return $http.post(API_HOST + '/systems/save/', { data: systemData }).then(function (data) { return data.data; });
 	}
 }]).service('ToolsService', ['$http', function ($http) {
-	this.deckTypes = {};
+	this.deckTypes = [
+		{
+			'short': 'pcwj',
+			'name': 'Playing Cards w/ Jokers',
+			'size': 54,
+			'class': 'pc',
+			'image': 'pc'
+		},
+		{
+			'short': 'pcwoj',
+			'name': 'Playing Cards w/o Jokers',
+			'size': 52,
+			'class': 'pc',
+			'image': 'pc'
+		}
+	];
+	this.suits = ['Hearts', 'Spades', 'Diamonds', 'Clubs'];
+	this.rollVisibility = {
+		1: '[Hidden Roll/Result]',
+		2: '[Hidden Dice &amp; Roll]',
+		3: '[Everything Hidden]'
+	};
+
 	this.init = function () {
 		var self = this;
 		this.getDeckTypes().then(function (data) {
@@ -268,6 +290,27 @@ app.config(['$httpProvider', function ($httpProvider) {
 	};
 	this.getDeckTypes = function () {
 		return $http.post(API_HOST + '/tools/getDeckTypes/').then(function (data) { return data.data; });
+	};
+	this.cardText = function (card, deck) {
+		if (deck == 'pc') {
+			if (card <= 52) {
+				cardNum = card % 13;
+				
+				if (cardNum == 1) 
+					cardNum = 'Ace';
+				else if (cardNum == 11) 
+					cardNum = 'Jack';
+				else if (cardNum == 12) 
+					cardNum = 'Queen';
+				else if (cardNum == 13) 
+					cardNum = 'King';
+				
+				return cardNum + ' of ' + this.suits[Math.floor((card - 1)/13)];
+			} else if (card == 53) 
+				return 'Black Joker';
+			else if (card == 54) 
+				return 'Red Joker';
+		}
 	};
 }]).service('LanguageService', [function () {
 	this.userProfileLink = function (userID, username) {
@@ -318,6 +361,11 @@ app.config(['$httpProvider', function ($httpProvider) {
 			type: type,
 			id: id
 		}).then(function (data) {
+			return data.data;
+		});
+	};
+	this.toggleCardVis = function (postID, deckID, card) {
+		return $http.post(API_HOST + '/forums/toggleCardVis/', { 'postID': postID, 'deckID': deckID, 'card': card }).then(function (data) {
 			return data.data;
 		});
 	};
@@ -891,7 +939,6 @@ app.config(['$httpProvider', function ($httpProvider) {
 			$timeout(function () {
 				if ((scope.checkbox instanceof Array && scope.checkbox.indexOf(scope.cbValue) != -1) || !(scope.checkbox instanceof Array) && scope.checkbox) 
 					scope.cbm = true;
-//				console.log(scope.checkbox, scope.cbValue, scope.cbm);
 				eleID = typeof attrs['eleid'] == 'string' && attrs['eleid']?attrs['eleid']:null;
 				$label = $(element).closest('label');
 				if (!$label.length && eleID) 
@@ -946,6 +993,8 @@ app.config(['$httpProvider', function ($httpProvider) {
 			'rValue': '=rValue'
 		},
 		link: function (scope, element, attrs) {
+//			scope.$watch(function () { return scope.radio; }, function () { console.log (scope.radio); });
+
 			scope.inputID = typeof attrs['eleid'] == 'string'?attrs['eleid']:'';
 
 			var label = null, wrapperLabel = false;
@@ -1085,24 +1134,77 @@ app.config(['$httpProvider', function ($httpProvider) {
 
 				element.find('.userAvatar').css({ top: finalHeight / -2, right: finalWidth / -2 });
 			}
-
-				// $userAvatarSize = getimagesize(FILEROOT.User::getAvatar($post->author->userID, $post->author->avatarExt));
-				// $xRatio = 40 / $userAvatarSize[0];
-				// $yRatio = 40 / $userAvatarSize[1];
-				
-				// if ($userAvatarSize[0] <= 40 && $userAvatarSize[1] <= 40) {
-				// 	$finalWidth = $userAvatarSize[0];
-				// 	$finalHeight = $userAvatarSize[1];
-				// } elseif (($xRatio * $userAvatarSize[1]) < 40) {
-				// 	$finalWidth = 40;
-				// 	$finalHeight = ceil($xRatio * $userAvatarSize[1]);
-				// } else {
-				// 	$finalWidth = ceil($yRatio * $userAvatarSize[0]);
-				// 	$finalHeight = 40;
-				// }
-
 		}
 	};
+}]).directive('userInactive', ['moment', function (moment) {
+	return {
+		restrict: 'E',
+		template: '<img ng-if="diffStr" src=\"/images/sleeping.png\" ng-attr-title=\"{{diffStr}}\" ng-attr-alt=\"{{diffStr}}\">',
+		scope: {
+			'lastActivity': '='
+		},
+		link: function (scope, element, attrs) {
+			scope.diffStr = null;
+
+			lastActivity = moment.utc(scope.lastActivity);
+			now = moment.utc();
+			daysDiff = now.diff(lastActivity, 'days');
+			if (daysDiff <= 14) 
+				return;
+			else {
+				monthsDiff = now.diff(lastActivity, 'months');
+				if (monthsDiff == 0) 
+					scope.diffStr = 'Inactive for ' + daysDiff + ' days';
+				else if (monthsDiff < 12) 
+					scope.diffStr = 'Inactive for ' + monthsDiff + ' month' + (monthsDiff > 1?'s':'');
+				else 
+					scope.diffStr = 'Inactive forever!';
+			}
+		}
+	}
+}]).directive('card', ['ToolsService', function(ToolsService) {
+	return {
+		restrict: 'E',
+		template: '<div class="cardWindow" ng-class="classes.deck"><img ng-src="{{deckImg}}" ng-attr-title="{{cardText}}" ng-attr-alt="{{cardText}}" ng-class="classes.card"></div>',
+		scope: {},
+		link: function (scope, element, attrs) {
+			var cardNum = parseInt(attrs.cardNum),
+				deckType = attrs.deckType,
+				size = attrs['size'],
+				deckInfo = {},
+				suits = ['hearts', 'spades', 'diamonds', 'clubs'];
+
+			if (['', 'mid', 'mini'].indexOf(size) == -1) 
+				size = '';
+			for (key in ToolsService.deckTypes) 
+				if (ToolsService.deckTypes[key].short == deckType) 
+					deckInfo = ToolsService.deckTypes[key];
+			scope.deckImg = '/images/tools/cards/' + deckInfo.image + '.png';
+			scope.cardText = ToolsService.cardText(cardNum, deckInfo.class);
+			scope.classes = {
+				'deck': ['deck_' + deckInfo.class, size],
+				'card': []
+			};
+			if (deckInfo.class == 'pc') {
+				if (cardNum <= 52) {
+					numClass = cardNum % 13;
+					if (numClass == 1) 
+						numClass = 'A';
+					else if (numClass == 11) 
+						numClass = 'J';
+					else if (numClass == 12) 
+						numClass = 'Q';
+					else if (numClass == 13) 
+						numClass = 'K';
+					scope.classes.card.push('num_' + numClass);
+					scope.classes.card.push(suits[Math.floor((cardNum - 1)/13)]);
+				} else if (cardNum == 53) 
+					scope.classes.card.push('blackJoker');
+				else if (cardNum == 54) 
+					scope.classes.card.push('redJoker');
+			}
+		}
+	}
 }]).filter('trustHTML', ['$sce', function($sce){
 	return function(text) {
 		if (typeof text != 'string') 
@@ -1149,6 +1251,10 @@ app.config(['$httpProvider', function ($httpProvider) {
 }]).filter('ceil', [function () {
 	return function (input) {
 		return Math.ceil(input);
+	}
+}]).filter('showSign', [function () {
+	return function (val) {
+		return (val >= 0?'+':'-') + Math.abs(val);
 	}
 }]).controller('core', ['$scope', 'SystemsService', function ($scope, SystemsService) {
 	$scope.pageLoadingPause = true;

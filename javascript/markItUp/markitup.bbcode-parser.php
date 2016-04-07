@@ -31,7 +31,7 @@
 
 //define ("EMOTICONS_DIR", "/images/emoticons/");
 
-function BBCode2Html($text) {
+function BBCode2Html($text, $post = null) {
 	$text = trim($text);
 
 	// BBCode [code]
@@ -104,21 +104,17 @@ function BBCode2Html($text) {
 	while (preg_match("/\[quote(?:=\"([\w\.]+?)\")?\](.*?)\[\/quote\]/sm", $text)) 
 		$text = preg_replace("/([\r\n]?)[\r\n]*\[quote(?:=\"([\w\.]+?)\")?\](.*?)\[\/quote\][\r\n]*/sm", '\1<blockquote class="quote"><div class="quotee">\2 says:</div>\3</blockquote>', $text);
 	$text = str_replace('<div class="quotee"> says:</div>', '<div class="quotee">Quote:</div>', $text);
-	
-	$matches = null;
-	global $currentUser, $isGM, $post;
-	$display = false;
 
-	$text = preg_replace('/\[note="?(\w[\w\. +;,]+?)"?](.*?)\[\/note\][\n\r]*/ms', '<blockquote class="note"><div>Note to \1</div>\2</blockquote>', $text);
-	$author = [
-		'userID' => is_object($post)?$post->getAuthor('userID'):$post['author']['userID'],
-		'username' => is_object($post)?$post->getAuthor('username'):$post['author']['username']
-	];
-	if (strpos($text, 'blockquote class="note"') !== false && !$isGM && $author['userID'] != $currentUser->userID && preg_match_all('/\<blockquote class="note"\>\<div\>Note to (.*?)\<\/div\>.*?\<\/blockquote\>/ms', $text, $matches, PREG_SET_ORDER)) {
-		foreach ($matches as $match) {
-			$noteTo = array_map('strtolower', preg_split('/[^\w\.]+/', $match[1]));
-			if (!in_array(strtolower($currentUser->username), $noteTo)) 
-				$text = str_replace($match[0], '<blockquote class="note"><div>'.$author['username'].' sent a note to '.$match[1].'</div></blockquote>', $text);
+	if ($post != null) {
+		$matches = null;
+		global $currentUser;
+		$text = preg_replace('/\[note="?(\w[\w\. +;,]+?)"?](.*?)\[\/note\][\n\r]*/ms', '<blockquote class="note"><div>Note to \1</div>\2</blockquote>', $text);
+		if (strpos($text, 'blockquote class="note"') !== false && !$post['author']['isGM'] && $post['author']['userID'] != $currentUser->userID && preg_match_all('/\<blockquote class="note"\>\<div\>Note to (.*?)\<\/div\>.*?\<\/blockquote\>/ms', $text, $matches, PREG_SET_ORDER)) {
+			foreach ($matches as $match) {
+				$noteTo = array_map('strtolower', preg_split('/[^\w\.]+/', $match[1]));
+				// if (!in_array(strtolower($currentUser->username), $noteTo)) 
+				// 	$text = str_replace($match[0], '<blockquote class="note"><div>'.$post['author']['username'].' sent a note to '.$match[1].'</div></blockquote>', $text);
+			}
 		}
 	}
 

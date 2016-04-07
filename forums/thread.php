@@ -48,44 +48,23 @@
 					<a ng-if="thread.permissions.write" href="/forums/post/<?=$threadID?>/" class="fancyButton" skew-element>Reply</a>
 				</div>
 			</div>
-<?	if (!$threadManager->getThreadProperty('states[locked]') && $threadManager->getPoll()) { ?>
 			<form id="poll" ng-if="!thread.locked && thread.poll" method="post" action="/forums/process/vote/">
-				<input type="hidden" name="threadID" value="{{threadID}}">
 				<p id="poll_question" ng-bind-html="thread.poll.question"></p>
-<? 
-		$castVotes = $threadManager->getVotesCast();
-		$allowVote = sizeof($castVotes) && $threadManager->getPollProperty('allowRevoting') || sizeof($castVotes) == 0;
-		if ($allowVote) 
-			echo "				<p>You may select ".($threadManager->getPollProperty('optionsPerUser') > 1?'up to ':'')."<b>".$threadManager->getPollProperty('optionsPerUser')."</b> option".($threadManager->getPollProperty('optionsPerUser') > 1?'s':'').".</p>\n";
-
-		$totalVotes = $threadManager->getVoteTotal();
-		$highestVotes = $threadManager->getVoteMax();
-?>
+				<p ng-if="!thread.poll.voted || thread.poll.allowRevoting">You may select {{thread.poll.optionsPerUser > 1?'up to ':''}}<strong>{{thread.poll.optionsPerUser}}</strong> option{{thread.poll.optionsPerUser > 1?'s':''}}</p>
 				<ul>
-<?
-		foreach ($threadManager->getPollProperty('options') as $pollOptionID => $option) {
-			echo "					<li class=\"clearfix\">\n";
-			if ($allowVote) {
-				if ($threadManager->getPollProperty('optionsPerUser') == 1) 
-					echo "						<div class=\"poll_input\"><input type=\"radio\" name=\"votes\" value=\"{$pollOptionID}\"".($option->voted?' checked="checked"':'')."></div>\n";
-				else 
-					echo "						<div class=\"poll_input\"><input type=\"checkbox\" name=\"votes\" value=\"{$pollOptionID}\"".($option->voted?' checked="checked"':'')."></div>\n";
-			}
-			echo "						<div class=\"poll_option\">".printReady($option->option)."</div>\n";
-			if (sizeof($castVotes)) {
-				echo "						<div class=\"poll_votesCast\" ".($option->votes?' style="width: '.(100 + floor($option->votes / $highestVotes * 425)).'px"':'').">".$option->votes.", ".floor($option->votes / $totalVotes * 100)."%</div>\n";
-			}
-			echo "					</li>\n";
-		}
-?>
+					<li ng-repeat="option in thread.poll.options" class="clearfix">
+						<span class="poll_input">
+							<pretty-radio ng-if="thread.poll.optionsPerUser == 1" eleid="option_{{$index}}" radio="thread.poll.votes" r-value="$index"></pretty-radio>
+							<pretty-checkbox ng-if="thread.poll.optionsPerUser > 1" eleid="option_{{$index}}" checkbox="thread.poll.votes" value="$index"></pretty-checkbox>
+						</span>
+						<label for="option_{{$index}}" class="pointer poll_option">{{option.option}}</label>
+						<span ng-if="thread.poll.voted" class="poll_votesCast" ng-style="{ width: option.width }">{{option.numVotes}}, {{option.percentage}}%</span>
+						</label>
+					</li>
 				</ul>
-<?		if ($allowVote) { ?>
-				<div id="poll_submit"><button type="submit" name="submit" class="fancyButton">Vote</button></div>
-<?		} ?>
+				<div id="poll_submit" ng-if="!thread.poll.voted || thread.poll.allowRevoting"><button type="submit" name="submit" class="fancyButton" skew-element>Vote</button></div>
 			</form>
-<?
-	}
-	
+<?	
 	$newPostMarked = false;
 ?>
 			<div ng-repeat="post in thread.posts" class="postBlock clearfix" ng-class="{ 'postLeft': postSide == 'l', 'postRight': postSide == 'r', 'postAsChar': post.postAs, 'withCharAvatar': post.postAs && post.postAs.avatar }">
@@ -94,79 +73,39 @@
 				<a ng-if="post.lastPost" name="lastPost"></a>
 				<div class="posterDetails">
 					<avatar user="post.author" char="post.postAs"></avatar>
-<?
-			if ($postAsChar) {
-				$character->getForumTop($post->author, in_array($post->author->userID, $gms));
-			} else {
-?>
-					<p class="posterName"><a href="/user/<?=$post->author->userID?>/" class="username"><?=$post->author->username?></a><?=in_array($post->author->userID, $gms)?' <img src="/images/gm_icon.png">':''?><?=User::inactive($post->author->lastActivity)?></p>
-<?			} ?>
+					<span ng-if="post.postAs">
+						<p ng-if="post.postAs.permissions" class="charName"><a href="/characters/{{post.postAs.system}}/{{post.postAs.characterID}}/" ng-bind-html="post.postAs.name"></a></p>
+						<p ng-if="!post.postAs.permissions" class="charName" ng-bind-html="post.postAs.name"></p>
+					</span>
+					<p class="posterName"><a href="/user/{{post.author.userID}}/" class="username" ng-bind-html="post.author.username"></a> <img ng-if="post.author.isGM" src="/images/gm_icon.png"><user-inactive last-activity="post.author.lastActivity"></user-inactive></p>
 				</div>
 				<div class="postContent">
-					<div class="postPoint point<?=$postSide == 'Right'?'Left':'Right'?>"></div>
+					<div class="postPoint" ng-class="{ 'pointLeft': postSide == 'l', 'pointRight': postSide == 'r' }"></div>
 					<header class="postHeader">
-						<div class="postedOn convertTZ"><?=date('M j, Y g:i a', strtotime($post->datePosted))?></div>
-						<div class="subject"><a href="?p=<?=$post->postID?>#p<?=$post->postID?>"><?=strlen($post->title)?printReady($post->title):'&nbsp'?></a></div>
+						<div class="postedOn">{{post.datePosted | amUtc | amLocal | amDateFormat: 'MMMM Do, YYYY h:mm a'}}</div>
+						<div class="subject"><a href="?p={{post.postID}}#p{{post.postID}}" ng-bind-html="post.title"></a></div>
 					</header>
-<?
-			echo "\t\t\t\t\t<div class=\"post\">\n";
-			echo printReady(BBCode2Html($post->message))."\n";
-			if ($post->timesEdited) { echo "\t\t\t\t\t\t".'<div class="editInfoDiv">Last edited <span  class="convertTZ">'.date('F j, Y g:i a', strtotime($post->lastEdit)).'</span>, a total of '.$post->timesEdited.' time'.(($post->timesEdited > 1)?'s':'')."</div>\n"; }
-			echo "\t\t\t\t\t</div>\n";
-			
-			if (sizeof($post->rolls)) {
-?>
-					<div class="rolls">
-						<h4>Rolls</h4>
-<?
-				foreach ($post->rolls as $roll) {
-					$showAll = $isGM || $currentUser->userID == $post->author->userID?true:false;
-?>
-						<div class="rollInfo">
-<?					$roll->showHTML($showAll); ?>
-						</div>
-<?				} ?>
+					<div class="post">
+						<span ng-bind-html="post.message"></span>
+						<div ng-if="post.timesEdited != 0" class="editInfoDiv">Last edited {{post.lastEdit | amUtc | amLocal | amDateFormat: 'MMMM Do, YYYY h:mm a'}}, a total of {{post.timesEdited}} time{{post.timesEdited > 1?'s':''}}</div>
 					</div>
-<?
-	 		}
-			
-			if (sizeof($post->draws)) {
-				$visText = array(1 => '[Hidden Roll/Result]', '[Hidden Dice &amp; Roll]', '[Everything Hidden]');
-				$hidden = false;
-?>
-					<h4>Deck Draws</h4>
-<?				foreach ($post->draws as $draw) { ?>
-					<div><?=printReady($draw['reason'])?></div>
-<?					if ($post->author->userID == $currentUser->userID) { ?>
-						<form method="post" action="/forums/process/cardVis/">
-							<input type="hidden" name="drawID" value="<?=$draw['_id']?>">
-<?						foreach ($draw['draw'] as $key => $cardDrawn) { ?>
-								<button type="submit" name="position" value="<?=$key?>">
-									<?=getCardImg($cardDrawn['card'], $draw['type'], 'mid')?>
-<?							$visText = $cardDrawn['visible']?'Visible':'Hidden'; ?>
-									<div alt="<?=$visText?>" title="<?=$visText?>" class="eyeIcon<?=$visText == 'Hidden'?' hidden':''?>"></div>
-								</button>
-<?						} ?>
-						</form>
-<?					} else { ?>
-						<div>
-<?
-						foreach ($draw['draw'] as $key => $cardDrawn) {
-							if ($cardDrawn['visible']) {
-?>
-							<?=getCardImg($cardDrawn['card'], $draw['type'], 'mid')?>
-<?							} else { ?>
-							<img src="/images/tools/cards/back.png" alt="Hidden Card" title="Hidden Card" class="cardBack mid">
-<?
-							}
-						}
-?>
+					<div ng-if="post.rolls">
+						<h4>Rolls</h4>
+						<div class="rollInfo">
+							<roll ng-repeat="roll in post.rolls" roll="roll" show-hidden="post.showRollHidden"></roll>
 						</div>
-<?
-					}
-				}
-	 		}
-?>
+					</div>
+					<div ng-if="post.draws">
+						<h4>Deck Draws</h4>
+						<div ng-repeat="draw in post.draws">
+							<div ng-bind-html="draw.reason"></div>
+							<span ng-repeat="card in draw.cards" class="cardWrapper">
+								<card ng-show="post.author.userID == currentUser.userID || card.visible" card-num="{{card.card}}" deck-type="{{draw.type}}" size="mid"></card>
+								<div ng-if="post.author.userID == currentUser.userID" ng-attr-alt="{{card.visible?'Visible':Hidden}}" ng-attr-title="{{card.visible?'Visible':Hidden}}" ng-class="{ 'eyeIcon': true, 'hidden': !card.visible }" ng-click="toggleCardVis(post.postID, draw.deckID, card)"></div>
+								<img ng-show="post.author.userID != currentUser.userID && !card.visible" src="/images/tools/cards/back.png" alt="Hidden Card" title="Hidden Card" class="cardBack mid">
+							</span>
+						</div>
+					</div>
 				</div>
 				<div class="postActions">
 <?

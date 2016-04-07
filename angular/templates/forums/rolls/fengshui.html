@@ -1,0 +1,9 @@
+<div class="roll">
+	<p class="rollString">
+		<span ng-if="roll.visibility > 0 && showHidden">{{rollVisibilityText[roll.visibility]}}</span>
+		<span ng-class="{ 'hidden': roll.visibility == 3 && showHidden }">{{roll.visibility <= 2 || showHidden?roll.reason:'Hidden Roll'}}</span>
+	</p>
+	<div ng-if="roll.visibility <= 1 || showHidden" class="rollResults">
+		{{roll.actionValue}} + <span ng-if="modifier != 'closed'">[ {{roll.rolls.p.join(', ')}} ]<span><span ng-if="modifier == 'closed'">{{roll.rolls.p[0]}}</span> - <span ng-if="modifier != 'closed'">[ {{roll.rolls.n.join(', ')}} ]<span><span ng-if="modifier == 'closed'">{{roll.rolls.n[0]}}</span><span ng-if="modifier == 'fortune'"> + {{roll.rolls.e}}</span> = {{roll.sum | showSign}}
+	</div>
+</div>

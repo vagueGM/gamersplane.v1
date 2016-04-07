@@ -9,11 +9,11 @@ controllers.controller('forum', ['$scope', 'Range', 'CurrentUser', 'ForumsServic
 	CurrentUser.load().then(function (loggedIn) {
 		$scope.loggedIn = loggedIn;
 		$scope.currentUser = CurrentUser.get();
-		$scope.$emit('pageLoading');
 		$scope.forums = {};
 		$scope.threads = [];
 		$scope.mainStructure = [];
 		ForumsService.getForum($scope.forumID, true, $scope.pagination.current).then(function (data) {
+			$scope.$emit('pageLoading');
 			$scope.forums = data.forums;
 			$scope.threads = data.threads?data.threads:[];
 			$scope.currentForum = $scope.forums[$scope.forumID];

@@ -344,7 +344,7 @@
 			margin-bottom: .3em;
 		}
 
-		li div {
+		li > * {
 			display: inline-block;
 		}
 
@@ -447,6 +447,10 @@
 		.posterName {
 			margin-top: .2em;
 			font-size: .85em;
+
+			img {
+				height: 1.1em;
+			}
 		}
 
 		.charName {
@@ -579,6 +583,12 @@
 		text-align: right;
 	}
 
+	.cardWrapper {
+		position: relative;
+		display: inline-block;
+		margin-right: 6px;
+	}
+
 	.eyeIcon {
 		position: absolute;
 		top: -10px;
@@ -586,6 +596,7 @@
 		height: 25px;
 		width: 25px;
 		background: url('../images/eye.png') top left no-repeat;
+		cursor: pointer;
 
 		&.hidden {
 			background-position: bottom left;

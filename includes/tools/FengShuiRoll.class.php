@@ -81,13 +81,22 @@
 						echo ' - '.$this->rolls['n'][0];
 					}
 					$sum = $this->roll + array_sum($this->rolls['p']) - array_sum($this->rolls['n']);
-					if ($this->rolls['e']) 
+					if ($this->modifier == 'fortune') 
 						$sum += $this->rolls['e'];
 					echo ' = '.$sum;
 					echo '</div>';
 				}
 				echo '</div>';
 			}
+		}
+
+		public function apiFormat() {
+			$roll = $this->mongoFormat();
+			$sum = $this->roll + array_sum($this->rolls['p']) - array_sum($this->rolls['n']);
+			if ($this->modifier == 'fortune') 
+				$sum += $this->rolls['e'];
+			$roll['sum'] = $sum;
+			return $roll;
 		}
 	}
 ?>

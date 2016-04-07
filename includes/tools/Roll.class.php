@@ -43,5 +43,7 @@
 		}
 
 		abstract function showHTML($showAll = false);
+
+		abstract function apiFormat();
 	}
 ?>

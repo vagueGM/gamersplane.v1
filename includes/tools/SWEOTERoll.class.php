@@ -119,5 +119,35 @@
 				echo '</div>';
 			}
 		}
+
+		public function apiFormat() {
+			$roll = $this->mongoFormat();
+			$rolls = [];
+			$counts = [
+				'success' => 0,
+				'advantage' => 0,
+				'triumph' => 0,
+				'failure' => 0,
+				'threat' => 0,
+				'dispair' => 0,
+				'whiteDot' => 0,
+				'blackDot' => 0
+			];
+			foreach ($roll['rolls'] as $iRoll) {
+				$rolls[] = [
+					'type' => $iRoll->getType(),
+					'result' => $iRoll->getResult()
+				];
+				$faces = explode('_', $iRoll->getResult());
+				foreach ($faces as $face) 
+					$counts[$face]++;
+			}
+			$roll['rolls'] = $rolls;
+			// foreach ($counts as $key => $value) 
+			// 	if ($value == 0) 
+			// 		unset($counts[$key]);
+			$roll['counts'] = $counts;
+			return $roll;
+		}
 	}
 ?>

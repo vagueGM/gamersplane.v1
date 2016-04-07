@@ -17,7 +17,6 @@
 			$this->threadID = (int) $threadID;
 			$poll = $mongo->polls->findOne(['threadID' => $this->threadID]);
 			if ($poll) {
-				$poll = $poll->fetch();
 				$this->question = $poll['question'];
 				$this->optionsPerUser = $poll['optionsPerUser'];
 				$this->pollLength = $poll['pollLength'];
@@ -176,7 +175,19 @@
 		}
 
 		public function getPollVars() {
-			return get_object_vars($this);
+			$poll = get_object_vars($this);
+			$poll['voted'] = false;
+			$poll['totalVotes'] = 0;
+			$poll['highestVotes'] = 0;
+			foreach ($poll['options'] as &$option) {
+				$option['option'] = printReady($option['option']);
+				if ($option['voted']) 
+					$poll['voted'] = true;
+				$poll['totalVotes'] += $option['numVotes'];
+				if ($option['numVotes'] > $poll['highestVotes']) 
+					$poll['highestVotes'] = $option['numVotes'];
+			}
+			return $poll;
 		}
 	}
 ?>

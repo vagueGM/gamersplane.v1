@@ -35,7 +35,7 @@
 						continue;//throw new Exception('Missing data for '.$this->forumID.': '.$key);
 					$this->$key = $loadData[$key];
 				}
-				if ($this->author['avatarExt']) {
+//				if ($this->author['avatarExt']) {
 					$avatar = User::getAvatar($this->author['userID'], $this->author['avatarExt']);
 					$userAvatarSize = getimagesize(FILEROOT.$avatar);
 					$this->author['avatar'] = [
@@ -44,8 +44,8 @@
 						'height' => (int) $userAvatarSize[1]
 					];
 					unset($this->author['avatarExt']);
-				} else 
-					$this->author['avatarExt'] = null;
+//				} else 
+//					$this->author['avatarExt'] = null;
 				$this->datePosted = $this->datePosted->sec;
 				$this->lastEdit = $this->lastEdit->sec;
 
@@ -58,8 +58,7 @@
 				}
 
 				if (sizeof($loadData['draws'])) 
-					foreach ($loadData['draws'] as $draw) 
-						$this->draws[$draw['deckID']] = $draw;
+					$this->draws = $loadData['draws'];
 			}
 		}
 
@@ -217,12 +216,18 @@
 			if (sizeof($post['rolls'])) {
 				$post['rolls'] = [];
 				foreach ($this->rolls as $roll) 
-					$post['rolls'][] = $roll->mongoFormat();
+					$post['rolls'][] = $roll->apiFormat();
 			} else 
 				$post['rolls'] = null;
 
 			if (sizeof($post['draws']) == 0) 
 				$post['draws'] = null;
+			else {
+				foreach ($post['draws'] as &$draw) {
+					foreach ($draw['cards'] as &$card) {
+					}
+				}
+			}
 
 			return $post;
 		}

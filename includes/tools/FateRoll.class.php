@@ -79,5 +79,17 @@
 				echo '</div>';
 			}
 		}
+
+		public function apiFormat() {
+			$roll = $this->mongoFormat();
+			$counts = array_count_values($roll['rolls']);
+			$roll['counts'] = [
+				-1 => isset($counts[-1])?$counts[-1]:0,
+				isset($counts[0])?$counts[0]:0,
+				isset($counts[1])?$counts[1]:0
+			];
+			$roll['total'] = array_sum($roll['rolls']);
+			return $roll;
+		}
 	}
 ?>

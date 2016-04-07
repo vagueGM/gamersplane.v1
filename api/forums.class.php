@@ -22,6 +22,8 @@
 				$this->toggleSub();
 			elseif ($pathOptions[0] == 'unsubscribe') 
 				$this->unsubscribe();
+			elseif ($pathOptions[0] == 'toggleCardVis') 
+				$this->toggleCardVis();
 			else 
 				displayJSON(array('failed' => true));
 		}
@@ -88,9 +90,12 @@
 			$newPost = false;
 			foreach ($threadManager->getPosts() as $post) {
 				$post = $post->getPostVars();
-				$post['message'] = printReady(BBCode2Html($post['message']));
+				$post['title'] = printReady(BBCode2Html($post['title']));
+				$post['author']['lastActivity'] *= 1000;
 				if ($post['postAs'] && !in_array($post['postAs'], $getChars)) 
 					$getChars[] = $post['postAs'];
+				if ($post['lastEdit'] != null) 
+					$post['lastEdit'] *= 1000;
 				$post['newPost'] = false;
 				if (!$newPost && $post['datePosted'] > $lastRead) {
 					$post['newPost'] = true;
@@ -125,12 +130,6 @@
 					'permissions' => $charObj->checkPermissions()
 				];
 			}
-			foreach ($posts as &$post) {
-				if ($post['postAs'] && $characters[$post['postAs']]) 
-					$post['postAs'] = $characters[$post['postAs']];
-				else 
-					$post['postAs'] = false;
-			}
 
 			$markedRead = $threadManager->forumManager->forums[$threadManager->getThreadProperty('forumID')]->getMarkedRead();
 			$subscribed = false;
@@ -143,7 +142,7 @@
 				$subscribed = 'f';
 			$poll = null;
 			try {
-				$poll = new ForumPoll($this->threadID);
+				$poll = new ForumPoll($threadID);
 				if ($poll->threadID == null) 
 					$poll = null;
 				else {
@@ -170,6 +169,23 @@
 				];
 			} else 
 				$game = null;
+
+			foreach ($posts as &$post) {
+				if ($post['postAs'] && $characters[$post['postAs']]) 
+					$post['postAs'] = $characters[$post['postAs']];
+				else 
+					$post['postAs'] = false;
+
+				if ($game) 
+					$post['author']['isGM'] = in_array($post['author']['userID'], $game['gms']);
+
+				$post['userIsAuthor'] = $currentUser->userID == $post['author']['userID'];
+
+				$post['message'] = printReady(BBCode2Html($post['message'], $post));
+
+				if ($post['rolls']) 
+					$post['showRollHidden'] = ($game && $game['isGM']) || $post['userIsAuthor'];
+			}
 
 			$thread = [
 				'threadID' => $threadID,
@@ -285,6 +301,30 @@
 			$mysql->query("DELETE FROM forumSubs WHERE userID = {$userID} AND type = '{$type}' AND ID = {$typeID} LIMIT 1");
 
 			displayJSON(array('success' => true));
+		}
+
+		public function toggleCardVis() {
+			global $mongo;
+
+			$postID = (int) $_POST['postID'];
+			$deckID = (int) $_POST['deckID'];
+			$card = (int) $_POST['card'];
+
+			$draws = $mongo->posts->findOne(['postID' => $postID], ['draws' => true]);
+			$draws = $draws['draws'];
+			foreach ($draws as &$draw) {
+				if ($draw['deckID'] == $deckID) {
+					$visible = false;
+					foreach ($draw['cards'] as &$iCard) {
+						if ($iCard['card'] == $card) {
+							$visible = !$iCard['visible'];
+							$iCard['visible'] = $visible;
+							$mongo->posts->update(['postID' => $postID], ['$set' => ['draws' => $draws]]);
+							return displayJSON(['success' => true, 'draw' => $draw]);
+						}
+					}
+				}
+			}
 		}
 	}
 ?>

@@ -27,7 +27,8 @@
 				}
 
 				return true;
-			} else return false;
+			} else 
+				return false;
 		}
 
 		function roll() {
@@ -49,6 +50,9 @@
 		function forumLoad($rollData) {
 			$this->reason = $rollData['reason'];
 			$this->rolls = $rollData['rolls'];
+			foreach ($this->rolls as &$roll) {
+
+			}
 			$this->setVisibility($rollData['visibility']);
 			$this->rerollAces = $rollData['rerollAces'];
 		}
@@ -105,7 +109,7 @@
 					echo 'Secret Roll';
 				if ($this->visibility > 1 && $showAll && !$hidden) {
 					echo '<span class="hidden">';
-					$hidden = true;
+					$hidden = true;	
 				}
 				if ($this->visibility <= 1 || $showAll) {
 					if (strlen($this->reason)) echo ' - (';
@@ -118,6 +122,27 @@
 				if ($this->visibility == 0 || $showAll) echo implode('', $rollValues);
 				echo '</div>';
 			}
+		}
+
+		public function apiFormat() {
+			$data = [
+				'type' => 'basic',
+				'reason' => $this->reason,
+				'roll' => [],
+				'rolls' => $this->rolls,
+				'visibility' => $this->visibility,
+				'rerollAces' => $this->rerollAces
+			];
+			foreach ($data['rolls'] as &$roll) {
+				$data['roll'][] = $roll['roll'];
+				$sum = 0;
+				foreach ($roll['results'] as $result) 
+					$sum += is_array($result)?array_sum($result):$result;
+				$roll['sum'] = (int) $sum + (int) $roll['modifier'];
+			}
+			$data['roll'] = implode(', ', $data['roll']);
+
+			return $data;
 		}
 	}
 ?>

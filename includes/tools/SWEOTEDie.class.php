@@ -19,7 +19,7 @@
 		}
 
 		public function __toString() {
-			return $result;
+			return $this->result;
 		}
 
 		public function getType() {
@@ -29,6 +29,10 @@
 		public function roll() {
 			$this->result = $this->dice[$this->type][mt_rand(1, $this->sides)];
 
+			return $this->result;
+		}
+
+		public function getResult() {
 			return $this->result;
 		}
 
