@@ -596,7 +596,6 @@ div.prettySelect > div {
 		width: 100%;
 		padding-right: 24px;
 		text-align: left;
-
 	}
 
 	&.resultsOpen {
@@ -632,13 +631,16 @@ div.prettySelect > div {
 		top: 100%;
 		left: 0;
 		max-height: 115px;
-		width: 100%;
 		.borderBox;
 		overflow-y: auto;
 		background-color: #FFF;
 		border: 1px solid #900;
 		border-top: none;
 		border-left-color: #400;
+
+		&.hidden {
+			visibility: hidden;
+		}
 
 		a {
 			display: block;
@@ -654,6 +656,10 @@ div.prettySelect > div {
 				background: #FCC;
 			}
 		}
+	}
+
+	input, .results a {
+		padding-right: 24px;
 	}
 
 	&.settingUp {

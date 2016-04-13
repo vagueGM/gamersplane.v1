@@ -364,8 +364,19 @@ app.config(['$httpProvider', function ($httpProvider) {
 			return data.data;
 		});
 	};
+	this.pollVote = function () {
+		return $http.post(API_HOST + '/forums/pollVote/', { 'postID': postID, 'deckID': deckID, 'card': card }).then(function (data) {
+			return data.data;
+		});
+	}
 	this.toggleCardVis = function (postID, deckID, card) {
 		return $http.post(API_HOST + '/forums/toggleCardVis/', { 'postID': postID, 'deckID': deckID, 'card': card }).then(function (data) {
+			return data.data;
+		});
+	};
+	this.toggleThreadState = function (threadID, state) {
+		threadID = parseInt(threadID);
+		return $http.post(API_HOST + '/forums/toggleThreadState/', { 'threadID': threadID, 'state': state }).then(function (data) {
 			return data.data;
 		});
 	};
@@ -621,7 +632,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 			});
 		}
 	};
-}]).directive('hbTopper', function () {
+}]).directive('hbTopper', [function () {
 	return {
 		restrict: 'A',
 		link: function (scope, element, attrs) {
@@ -631,7 +642,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 			$element.css({ 'margin-left': skewedOut });
 		}
 	};
-}).directive('colorbox', function () {
+}]).directive('colorbox', [function () {
 	return {
 		restrict: 'A',
 		link: function (scope, element, attrs) {
@@ -644,7 +655,14 @@ app.config(['$httpProvider', function ($httpProvider) {
 			});
 		}
 	}
-}).directive('paginate', ['$timeout', function ($timeout) {
+}]).directive('markItUp', [function () {
+	return {
+		restrict: 'A',
+		link: function (scope, element, attrs) {
+			$(element).markItUp(mySettings);
+		}
+	};
+}]).directive('paginate', ['$timeout', function ($timeout) {
 	return {
 		restrict: 'E',
 		templateUrl: '/angular/directives/paginate.php',
@@ -731,8 +749,11 @@ app.config(['$httpProvider', function ($httpProvider) {
 			scope.showDropdown = false;
 			scope.hasFocus = false;
 			scope.curSelected = -1;
+			scope.comboWidth = 100;
 			var $combobox = element.children('.combobox'),
-				$input = element.children('input');
+				$input = element.children('input'),
+				$resultsWrapper = element.find('.results'),
+				$results = $($resultsWrapper).children();
 			if (!isUndefined(attrs.class)) {
 				$combobox.addClass(attrs.class);
 				element.attr('class', '');
@@ -778,6 +799,9 @@ app.config(['$httpProvider', function ($httpProvider) {
 				scope.options = [];
 				if (isUndefined(scope.data) || (scope.data instanceof Array && scope.data.length == 0)) 
 					return;
+				if (scope.select) {
+					scope.search = '';
+				}
 				optsIsArray = Array.isArray(scope.data);
 				for (key in scope.data) {
 					val = scope.data[key];
@@ -805,11 +829,19 @@ app.config(['$httpProvider', function ($httpProvider) {
 				if (scope.select && scope.options.length && (isUndefined(scope.value) || isUndefined(scope.value.value) || isUndefined(scope.value.display) || (scope.value.value == null && scope.value.display == '')) && !scope.hasFocus) {
 					scope.value = copyObject(scope.options[0]);
 					scope.search = scope.value.display;
+				} else if (scope.select) {
+					scope.value = copyObject($filter('filter')(scope.options, { 'value': scope.value.value }, true)[0]);
+					scope.search = scope.value.display;
 				}
 
 				if (scope.orderBy) 
 					scope.options = $filter('orderBy')(scope.options, scope.orderBy);
 			}, true);
+
+			scope.$watch(function () { return $resultsWrapper.width() }, function () {
+				console.log($resultsWrapper.width());
+				scope.comboWidth = Math.ceil($resultsWrapper.outerWidth());
+			});
 
 			scope.inputFocused = function () {
 				scope.hasFocus = true;
@@ -889,8 +921,6 @@ app.config(['$httpProvider', function ($httpProvider) {
 					$event.preventDefault();
 					if (!scope.showDropdown) 
 						scope.showDropdown = true;
-					$resultsWrapper = element.find('.results');
-					$results = $($resultsWrapper).children();
 					resultsHeight = $resultsWrapper.height();
 
 					if ($event.keyCode == 40) 
