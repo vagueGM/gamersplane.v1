@@ -167,16 +167,16 @@
 			global $currentUser, $mysql, $mongo;
 
 			$postData = [
-				'postID' => null,
+				'postID' => $this->postID?$this->postID:null,
 				'threadID' => $this->threadID,
 				'title' => $this->title,
 				'authorID' => $this->author->userID,
 				'message' => $this->message,
 				'datePosted' => $datePosted,
-				'lastEdit' => null,
+				'lastEdit' => $this->lastEdit?$this->lastEdit:null,
 				'timesEdited' => $this->timesEdited,
 				'rolls' => null,
-				'draws'	=> null
+				'draws'	=> sizeof($this->draws)?$this->draws:null
 			];
 			if ($this->postAs) 
 				$postData['postAs'] = $this->postAs;
@@ -185,17 +185,15 @@
 					$postData['rolls'][] = $roll->mongoFormat();
 
 			if ($this->postID == null) {
-				$addPost = $mysql->prepare("INSERT INTO posts SET threadID = {$this->threadID}, title = :title, authorID = {$currentUser->userID}, message = :message, datePosted = :datePosted, postAs = ".($this->postAs?$this->postAs:'NULL'));
-				$addPost->bindValue(':title', $this->title);
-				$addPost->bindValue(':message', $this->message);
-				$addPost->bindValue(':datePosted', date('Y-m-d H:i:s'));
-				$addPost->execute();
-				$this->postID = $mysql->lastInsertId();
+				$postData['postID'] = mongo_getNextSequence('postID');
+				$postData['authorID'] = $currentUser->userID;
+				$postData['datePosted'] = new MongoDate();
+				$mongo->posts->insert($postData);
+				$this->postID = $postData['postID'];
+				$this->datePosted = $postData['postAs']->sec;
 			} else {
-				$updatePost = $mysql->prepare("UPDATE posts SET title = :title, message = :message, postAs = ".($this->postAs?$this->postAs:'NULL').($this->edited?", lastEdit = NOW(), timesEdited = {$this->timesEdited}":'')." WHERE postID = {$this->postID}");
-				$updatePost->bindValue(':title', $this->title);
-				$updatePost->bindValue(':message', $this->message);
-				$updatePost->execute();
+				unset($postData['postID'], $postData['threadID'], $postData['authorID'], $postData['datePosted']);
+				$mongo->posts->update(['postID' => $this->postID], ['$set' => $postData]);
 			}
 
 			return $this->postID;

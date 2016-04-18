@@ -93,7 +93,7 @@
 				$numPrevPosts = $mongo->posts->find(['threadID' => $this->threadID, 'datePosted' => ['$lt' => $datePosted['datePosted']]])->count();
 				$page = $numPrevPosts?ceil($numPrevPosts / PAGINATE_PER_PAGE):1;
 			} else 
-				$page = intval($_GET['page']);
+				$page = intval($_POST['page']);
 			$this->page = intval($page) > 0?intval($page):1;
 		}
 
@@ -154,6 +154,17 @@
 			return $this->thread->getVoteMax();
 		}
 
+		public function toggleThreadState($state) {
+			global $mongo;
+
+			if ($state != 'locked' && $state != 'sticky') 
+				return false;
+			$stateVal = (bool) $this->thread->getStates($state);
+			$mongo->threads->update(['threadID' => $this->threadID], ['$set' => [$state => !$stateVal]]);
+
+			return !$stateVal;
+		}
+
 		public function saveThread($post) {
 			global $mysql;
 
@@ -195,10 +206,37 @@
 			return $postID;
 		}
 
+		public function updateLastPost($postID, $author, $datePosted) {
+			global $mongo;
+
+			$datePosted = new MongoDate($datePosted);
+			$mongo->threads->update(['threadID' => $this->threadID], ['$set' => ['lastPost' => [
+				'postID' => $postID,
+				'author' => $author,
+				'datePosted' => $datePosted
+			]]]);
+			$mongo->forums->update(['forumID' => $this->thread->forumID], ['$set' => ['lastPost' => [
+				'threadID' => $this->threadID,
+				'postID' => $postID,
+				'author' => $author,
+				'datePosted' => $datePosted
+			]]]);
+		}
+
 		public function updateLastRead($postID) {
-			global $loggedIn, $mysql, $currentUser;
+			global $loggedIn, $mongo, $currentUser;
 			if ($loggedIn && $postID > $this->getThreadProperty('lastRead')) 
-				$mysql->query("INSERT INTO forums_readData_threads SET threadID = {$this->threadID}, userID = {$currentUser->userID}, lastRead = {$postID} ON DUPLICATE KEY UPDATE lastRead = {$postID}");
+				$mongo->forumsReadData->update([
+					'userID' => $currentUser->userID,
+					'type' => 'thread',
+					'threadID' => $this->threadID
+				], [
+					'userID' => $currentUser->userID,
+					'type' => 'thread',
+					'threadID' => $this->threadID,
+					'forumID' => $this->thread->forumID,
+					'markedRead' => new MongoDate()
+				], ['upsert' => true]);
 		}
 
 		public function displayPagination() {

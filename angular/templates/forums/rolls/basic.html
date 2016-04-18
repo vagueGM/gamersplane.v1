@@ -1,7 +1,7 @@
 <div class="roll">
 	<p class="rollString">
 		<span ng-if="roll.visibility > 0 && showHidden">{{rollVisibilityText[roll.visibility]}}</span>
-		<span ng-class="{ 'hidden': roll.visibility == 3 && showHidden }">{{roll.visibility <= 2 || showHidden?roll.reason:'Hidden Roll'}}</span><span ng-if="roll.visibility <= 1 || showAll" ng-class="{ 'hidden': roll.visibility > 1 && showHidden }"> - ({{roll.roll}})</span>
+		<span ng-class="{ 'hidden': roll.visibility == 3 && showHidden }">{{roll.visibility <= 2 || showHidden?roll.reason:'Hidden Roll'}}</span> <span ng-if="roll.visibility <= 1 || showAll" ng-class="{ 'hidden': roll.visibility > 1 && showHidden }">- ({{roll.roll}})</span><span ng-if="roll.visibility > 1 && !showAll" class="hidden">(Roll Hidden)</span>
 		<p ng-if="roll.visibility == 0 || showHidden" ng-repeat="iRoll in roll.rolls" class="rollResults" ng-class="{ 'hidden': roll.visibility > 0 && showHidden }"><span ng-if="roll.rolls.length > 1">{{iRoll.roll + ' - '}}</span>{{iRoll.results | displayRolls}}<span ng-if="iRoll.modifier != 0"> {{iRoll.modifier > 0?'+':'-'}} {{iRoll.modifier}}</span> = {{iRoll.sum}}</span></p>
 	</p>
 </div>

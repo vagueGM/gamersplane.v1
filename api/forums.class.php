@@ -24,6 +24,10 @@
 				$this->unsubscribe();
 			elseif ($pathOptions[0] == 'toggleCardVis') 
 				$this->toggleCardVis();
+			elseif ($pathOptions[0] == 'toggleThreadState') 
+				$this->toggleThreadState();
+			elseif ($pathOptions[0] == 'savePost') 
+				$this->savePost();
 			else 
 				displayJSON(array('failed' => true));
 		}
@@ -81,6 +85,8 @@
 
 			$threadID = (int) $_POST['threadID'];
 			$threadManager = new ThreadManager($threadID);
+			if (!$threadManager || !$threadManager->getPermissions('read')) 
+				displayJSON(['failed' => true, 'noPermission' => true]);
 			$threadManager->setPage();
 			$posts = [];
 			$getChars = [];
@@ -118,11 +124,11 @@
 					'forumID' => $threadManager->getThreadProperty('forumID'),
 					'lastRead' => new MongoDate($lastRead)
 				], ['upsert' => true]);
-			$rCharacters = $mongo->characters->find(['characterID' => ['$in' => $getChars]], ['characterID' => true, 'system' => true, 'name' => true]);
-			$characters = [];
-			foreach ($rCharacters as $character) {
+			$rPostAsChars = $mongo->characters->find(['characterID' => ['$in' => $getChars]], ['characterID' => true, 'system' => true, 'name' => true]);
+			$postAsChars = [];
+			foreach ($rPostAsChars as $character) {
 				$charObj = CharacterFactory::getCharacter($character['system']);
-				$characters[$character['characterID']] = [
+				$postAsChars[$character['characterID']] = [
 					'characterID' => $character['characterID'],
 					'name' => $character['name'],
 					'system' => $character['system'],
@@ -167,12 +173,19 @@
 					'isGM' => $isGM,
 					'gms' => $gms
 				];
+				$rCharacters = $mongo->characters->find(array('game.gameID' => $gameID, 'game.approved' => true, 'user.userID' => $currentUser->userID), array('characterID' => true, 'name' => true));
+				$characters = array();
+				foreach ($rCharacters as $character)
+					if (strlen($character['name'])) 
+						$characters[$character['characterID']] = $character['name'];
+				if (sizeof($characters) == 0) 
+					$characters = null;
 			} else 
 				$game = null;
 
 			foreach ($posts as &$post) {
-				if ($post['postAs'] && $characters[$post['postAs']]) 
-					$post['postAs'] = $characters[$post['postAs']];
+				if ($post['postAs'] && $postAsChars[$post['postAs']]) 
+					$post['postAs'] = $postAsChars[$post['postAs']];
 				else 
 					$post['postAs'] = false;
 
@@ -192,6 +205,7 @@
 				'title' => $threadManager->getThreadProperty('title'),
 				'forumID' => (int) $threadManager->getThreadProperty('forumID'),
 				'forumHeritage' => $threadManager->forumManager->getHeritage(),
+				'firstPostID' => (int) $threadManager->thread->firstPostID,
 				'sticky' => (bool) $threadManager->thread->getStates('sticky'),
 				'locked' => (bool) $threadManager->thread->getStates('locked'),
 				'allowRolls' => (bool) $threadManager->getThreadProperty('allowRolls'),
@@ -202,7 +216,7 @@
 				'permissions' => $threadManager->getPermissions(),
 				'poll' => $poll,
 				'posts' => $posts,
-				'characters' => $characters,
+				'characters' => isset($characters)?$characters:null,
 				'game' => $game
 			];
 
@@ -325,6 +339,280 @@
 					}
 				}
 			}
+		}
+
+		public function toggleThreadState() {
+			global $mysql, $mongo;
+
+			$threadID = (int) $_POST['threadID'];
+			$state = $_POST['state'];
+
+			if (($state != 'locked' && $state != 'sticky') || $threadID <= 0) 
+				displayJSON(['failed' => true]);
+
+			$threadManager = new ThreadManager($threadID);
+			if (!$threadManager || !$threadManager->getPermissions('moderate')) 
+				displayJSON(['failed' => true, 'noPermission' => true]);
+			$stateVal = $threadManager->toggleThreadState($state);
+
+			displayJSON(['success' => true, $state => $stateVal]);
+		}
+
+		public function savePost() {
+			global $currentUser, $mysql, $mongo;
+
+			if ($_POST['threadID']) {
+				$threadID = intval($_POST['threadID']);
+				$threadManager = new ThreadManager($threadID);
+				if (!$threadManager->getPermissions('write') || ($locked && $threadManager->getPermissions('moderate'))) 
+					displayJSON(['failed' => true, 'noPermission' => true]);
+			} else 
+				$forumManager = new ForumManager((int) $_POST['new']);
+
+			if ($_POST['edit']) {
+				$postID = intval($_POST['edit']);
+				$post = new Post($postID);
+				$threadID = intval($post->threadID);
+			} else 
+				$post = new Post();
+			$post->setTitle($_POST['title']);
+			$post->setPostAs($_POST['postAs']);
+			$message = $_POST['message'];
+			if (isset($threadID)) 
+				$gameID = $threadManager->getForumProperty('gameID');
+			elseif (isset($_POST['new'])) 
+				$gameID = $forumManager->getForumProperty((int) $_POST['new'], 'gameID');
+
+			if (preg_match_all('/\[note="?(\w[\w +;,]+?)"?](.*?)\[\/note\]/ms', $message, $matches, PREG_SET_ORDER)) {
+				$allUsers = array();
+				foreach ($matches as $match) 
+					foreach (preg_split('/[^\w]+/', $match[1]) as $eachUser) 
+						$allUsers[] = $eachUser;
+				$allUsers = array_unique($allUsers);
+				$userCheck = $mysql->prepare('SELECT username FROM users WHERE LOWER(username) = :username');
+				foreach ($allUsers as $key => $username) {
+					$userCheck->bindValue(':username', strtolower($username));
+					$userCheck->execute();
+					if (!$userCheck->rowCount()) 
+						unset($allUsers[$key]);
+					else 
+						$allUsers[$key] = $userCheck->fetchColumn();
+				}
+				foreach ($matches as $match) {
+					$matchUsers = preg_split('/[^\w]+/', $match[1]);
+					$validUsers = array();
+					foreach ($matchUsers as $user) {
+						foreach ($allUsers as $realUser) {
+							if (strtolower($user) == strtolower($realUser)) 
+								$validUsers[] = $realUser;
+						}
+					}
+					$validNote = preg_replace('/\[note.*?\]/', '[note="'.implode(',', $validUsers).'"]', $match[0]);
+					$message = str_replace($match[0], $validNote, $message);
+				}
+			}
+			$post->setMessage($message);
+			
+			$rolls = array();
+			$draws = array();
+
+			if (sizeof($_POST['rolls'])) { foreach ($_POST['rolls'] as $num => $roll) {
+				$cleanedRoll = array();
+				if (strlen($roll['roll'])) {
+					$rollObj = RollFactory::getRoll($roll['type']);
+					if (!isset($roll['options'])) $roll['options'] = array();
+					$rollObj->newRoll($roll['roll'], $roll['options']);
+					$rollObj->roll();
+					$rollObj->setReason($roll['reason']);
+					$rollObj->setVisibility($roll['visibility']);
+					$post->addRollObj($rollObj);
+				}
+			} }
+
+			if (sizeof($_POST['decks'])) {
+				$returnFields = array('players' => true);
+				if (sizeof($_POST['decks'])) 
+					$returnFields['decks'] = true;
+				$game = $mongo->games->findOne(array('gameID' => $gameID, 'players.user.userID' => $currentUser->userID), $returnFields);
+				if ($game) {
+					$rDecks = $game['decks'];
+					$decks = array();
+					$draws = array_filter($_POST['decks'], function($value) { return intval($value['draw']) > 0?true:false; });
+					foreach ($rDecks as $deck) 
+						if (array_key_exists((int) $deck['deckID'], $draws) && in_array($currentUser->userID, $deck['permissions'])) 
+							$decks[$deck['deckID']] = $deck;
+					$isGM = null;
+					foreach ($game['players'] as $player) {
+						if ($player['user']['userID'] == $currentUser->userID) {
+							$isGM = $player['isGM'];
+							break;
+						}
+					}
+					foreach ($draws as $deckID => $draw) {
+						if ($draw['draw'] > 0) {
+							$deck = $decks[$deckID]['deck'];
+							if (strlen($draw['reason']) == 0) {
+								$_SESSION['errors']['noDrawReason'] = 1;
+								break;
+							} elseif ($decks[$deckID]['position'] + $draw['draw'] - 1 > sizeof($deck)) {
+								$_SESSION['errors']['overdrawn'] = 1;
+								break;
+							}
+
+							$draw['cardsDrawn'] = array();
+							for ($count = $decks[$deckID]['position']; $count <= $decks[$deckID]['position'] + $draw['draw'] - 1; $count++) 
+								$draw['cardsDrawn'][] = $deck[$count - 1];
+							$draw['cardsDrawn'] = implode('~', $draw['cardsDrawn']);
+							$draw['reason'] = sanitizeString($draw['reason']);
+							$draw['type'] = $decks[$deckID]['type'];
+							$post->addDraw($deckID, $draw);
+						}
+					}
+				}
+			}
+
+			$errors = [];
+			if ($_POST['new']) {
+				$forumID = intval($_POST['new']);
+				$threadManager = new ThreadManager(null, $forumID);
+				$threadManager->thread->title = $post->getTitle();
+
+				if (!$threadManager->getPermissions('createThread')) 
+					displayJSON(['failed' => true, 'noPermission' => true]);
+				$threadManager->thread->setState('sticky', isset($_POST['sticky']) && $threadManager->getPermissions('moderate')?true:false);
+				$threadManager->thread->setState('locked', isset($_POST['locked']) && $threadManager->getPermissions('moderate')?true:false);
+				$threadManager->thread->setAllowRolls(isset($_POST['allowRolls']) && $threadManager->getPermissions('addRolls')?true:false);
+				$threadManager->thread->setAllowDraws(isset($_POST['allowDraws']) && $threadManager->getPermissions('addRolls')?true:false);
+				
+				if (strlen($post->getTitle()) == 0) 
+					$errors[] = 'noTitle';
+				if (strlen($post->getMessage()) == 0) 
+					$errors[] = 'noMessage';
+				
+				$threadManager->thread->poll->setQuestion($_POST['poll']);
+				$threadManager->thread->poll->parseOptions($_POST['pollOptions']);
+				if (strlen($threadManager->thread->poll->getQuestion()) && sizeof($threadManager->thread->poll->getOptions())) {
+					if (strlen($threadManager->thread->poll->getQuestion()) == 0 && sizeof($threadManager->thread->poll->getOptions()) != 0) 
+						$errors[] = 'noQuestion';
+					if (strlen($threadManager->thread->poll->getQuestion()) && sizeof($threadManager->thread->poll->getOptions()) <= 1) 
+						$errors[] = 'noOptions';
+					$threadManager->thread->poll->setOptionsPerUser($_POST['optionsPerUser']);
+					if ($threadManager->thread->poll->getOptionsPerUser() == 0) 
+						$errors[] = 'noOptionsPerUser';
+					$threadManager->thread->poll->setAllowRevoting($_POST['allowRevoting']);
+				}
+
+				if (sizeof($errors)) 
+					displayJSON(['failed' => true, 'errors' => $errors]);
+				else 
+					$postID = $threadManager->saveThread($post);
+			} elseif ($_POST['threadID']) {
+				$threadID = intval($_POST['threadID']);
+
+				$post->setThreadID($threadID);
+				if (strlen($post->getTitle()) == 0) 
+					$post->setTitle('Re: '.$threadManager->getThreadProperty('title'));
+				if (strlen($post->getMessage()) == 0) 
+					$errors[] = 'noMessage';
+
+				if (sizeof($errors)) 
+					displayJSON(['failed' => true, 'errors' => $errors]);
+				else {
+					$postID = $post->savePost();
+					$threadManager->updateLastPost($post->postID, ['userID' => $currentUser->userID, 'username' => $currentUser->username], $post->datePosted);
+					$threadManager->updatePostCount();
+					$threadManager->updateLastRead($postID);
+				}
+			} elseif ($_POST['edit']) {
+				$threadManager = new ThreadManager($post->getThreadID());
+				$firstPost = $threadManager->getThreadProperty('firstPostID') == $post->getPostID()?true:false;
+
+				if (!(($post->getAuthor('userID') == $currentUser->userID && $threadManager->getPermissions('editPost') && !$threadManager->thread->getStates('locked')) || $threadManager->getPermissions('moderate'))) 
+					displayJSON(['failed' => true, 'cantEdit' => true]);
+
+				if ($firstPost && strlen($post->getTitle()) == 0) 
+					$errors[] = 'noTitle';
+				if (strlen($post->getMessage()) == 0) 
+					$errors[] = 'noMessage';
+
+				if ($firstPost) {
+					$threadManager->thread->setState('sticky', isset($_POST['sticky']) && $threadManager->getPermissions('moderate')?true:false);
+					$threadManager->thread->setState('locked', isset($_POST['locked']) && $threadManager->getPermissions('moderate')?true:false);
+					$threadManager->thread->setAllowRolls(isset($_POST['allowRolls']) && $threadManager->getPermissions('addRolls')?true:false);
+					$threadManager->thread->setAllowDraws(isset($_POST['allowDraws']) && $threadManager->getPermissions('addRolls')?true:false);
+
+					if (!isset($_POST['deletePoll'])) {
+						$threadManager->thread->poll->setQuestion($_POST['poll']);
+						$threadManager->thread->poll->parseOptions($_POST['pollOptions']);
+						if (strlen($threadManager->thread->poll->getQuestion()) && sizeof($threadManager->thread->poll->getOptions())) {
+							if (strlen($threadManager->thread->poll->getQuestion()) == 0 && sizeof($threadManager->thread->poll->getOptions()) != 0) 
+								$errors[] = 'noQuestion';
+							if (strlen($threadManager->thread->poll->getQuestion()) && sizeof($threadManager->thread->poll->getOptions()) <= 1) 
+								$errors[] = 'noOptions';
+							$threadManager->thread->poll->setOptionsPerUser($_POST['optionsPerUser']);
+							if ($threadManager->thread->poll->getOptionsPerUser() == 0) 
+								$errors[] = 'noOptionsPerUser';
+							$threadManager->thread->poll->setAllowRevoting($_POST['allowRevoting']);
+						}
+					}
+				}
+
+				if (sizeof($errors)) 
+					displayJSON(['failed' => true, 'errors' => $errors]);
+				else {
+					if (((time() + 300) > strtotime($post->getDatePosted()) || (time() + 60) > strtotime($post->getLastEdit())) && !$threadManager->getPermissions('moderate') && $post->getModified()) {
+						$edited = true;
+						$post->updateEdited();
+					}
+
+					if ($firstPost) {
+						$threadManager->thread->setState('sticky', isset($_POST['sticky']) && $threadManager->getPermissions('moderate')?true:false);
+						$threadManager->thread->setState('locked', isset($_POST['locked']) && $threadManager->getPermissions('moderate')?true:false);
+						$threadManager->thread->setAllowRolls(isset($_POST['allowRolls']) && $threadManager->getPermissions('addRolls')?true:false);
+						$threadManager->thread->setAllowDraws(isset($_POST['allowDraws']) && $threadManager->getPermissions('addDraws')?true:false);
+						
+						if (isset($_POST['deletePoll'])) $threadManager->deletePoll();
+
+						$threadManager->saveThread($post);
+					} else {
+						$allowRolls = $postInfo['allowRolls'];
+						$allowDraws = $postInfo['allowDraws'];
+
+						$post->savePost();
+					}
+					
+					foreach ($_POST['nVisibility'] as $rollID => $nVisibility) {
+						if (intval($nVisibility) != intval($_POST['oVisibility'][$rollID])) $mysql->query('UPDATE rolls SET visibility = '.intval($nVisibility)." WHERE rollID = $rollID");
+					}
+				}
+			}
+
+			if (!isset($_POST['edit'])) {
+				$subbedUsers = $mongo->forumSubs->find(['$or' => [
+					['forumID' => $threadManager->getThreadProperty('forumID')],
+					['threadID' => $threadManager->getThreadID()]
+				]], ['userID' => true]);
+				$userIDs = [];
+				foreach ($subbedUsers as $user) 
+					$userIDs[] = $user['userID'];
+				$userIDs = array_unique($userIDs);
+				$subbedUsers = $mysql->query("SELECT email FROM users WHERE userID IN (".implode(',', $userIDs).")");
+				$subs = [];
+				if ($subbedUsers->rowCount()) 
+					foreach ($subbedUsers as $user) 
+						$subs[] = $user['email'];
+				if (sizeof($subs)) {
+					$subs = array_unique($subs);
+					ob_start();
+					include('forums/process/threadSubEmail.php');
+					$email = ob_get_contents();
+					ob_end_clean();
+					foreach ($subs as $sub) 
+						@mail($sub, "New Posts", $email, "Content-type: text/html\r\nFrom: Gamers Plane <contact@gamersplane.com>");
+				}
+			}
+
+			displayJSON(['success' => true]);
 		}
 	}
 ?>

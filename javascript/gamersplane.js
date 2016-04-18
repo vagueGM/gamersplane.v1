@@ -380,6 +380,11 @@ app.config(['$httpProvider', function ($httpProvider) {
 			return data.data;
 		});
 	};
+	this.savePost = function (postData) {
+		return $http.post(API_HOST + '/forums/savePost/', postData).then(function (data) {2
+			return data.data;
+		});
+	};
 }]).service('Links', ['$http', function ($http) {
 	this.categories = [ 'Blog', 'Podcast', 'Videocast', 'Liveplay', 'Devs', 'Accessories' ];
 	this.get = function (params) {
@@ -836,12 +841,11 @@ app.config(['$httpProvider', function ($httpProvider) {
 
 				if (scope.orderBy) 
 					scope.options = $filter('orderBy')(scope.options, scope.orderBy);
-			}, true);
 
-			scope.$watch(function () { return $resultsWrapper.width() }, function () {
-				console.log($resultsWrapper.width());
-				scope.comboWidth = Math.ceil($resultsWrapper.outerWidth());
-			});
+				$timeout(function () {
+					scope.comboWidth = Math.ceil($resultsWrapper.outerWidth());
+				});
+			}, true);
 
 			scope.inputFocused = function () {
 				scope.hasFocus = true;

@@ -37,8 +37,10 @@
 
 		public function toggleValue($key) {
 			if (in_array($key, array('sticky', 'locked', 'allowRolls', 'allowDraws'))) {
-				if ($key == 'sticky' || $key == 'locked') $this->states[$key] = !$this->states[$key];
-				else $this->$key = !$this->$key;
+				if ($key == 'sticky' || $key == 'locked') 
+					$this->states[$key] = !$this->states[$key];
+				else 
+					$this->$key = !$this->$key;
 			}
 		}
 
@@ -115,6 +117,7 @@
 			$getUsers = [];
 			foreach ($posts as $post) 
 				$getUsers[] = $post['authorID'];
+			$getUsers = array_unique($getUsers);
 			$rUsers = $mysql->query("SELECT u.userID, u.username, um.metaValue avatarExt, u.lastActivity FROM users u LEFT JOIN usermeta um ON u.userID = um.userID AND um.metaKey = 'avatarExt' WHERE u.userID IN (".implode(',', $getUsers).")");
 			$users = [];
 			foreach ($rUsers as $user) 

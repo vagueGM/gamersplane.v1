@@ -40,34 +40,30 @@
 					<a href="/forums/{{thread.forumID}}/">Back to the forums</a>
 				</div>
 				<div class="rightCol alignRight">
-					<p ng-if="loggedIn && thread.subscribed != 'f'" class="threadSub"><a id="forumSub" href="/forums/process/subscribe/{{threadID}}">{{thread.subscribed == 't'?'Unsubscribe from':'Subscribe to'}} thread</a></p>
-					<form id="threadOptions" ng-if="thread.permissions.moderate" method="post" action="/forums/process/modThread/">
-						<button type="submit" name="sticky" title="{{thread.sticky?'Uns':'S'}}ticky Thread" alt="{{thread.sticky?'Uns':'S'}}ticky Thread" ng-class="thread.sticky?'unsticky':'sticky'"></button>
-						<button type="submit" name="lock" title="{{thread.sticky?'Unl':'L'}}ock Thread" alt="{{thread.sticky?'Unl':'L'}}ock Thread" ng-class="thread.sticky?'unlock':'lock'"></button>
-					</form>
+					<p ng-if="loggedIn && thread.subscribed != 'f'" class="threadSub"><a id="forumSub" ng-click="toggleSubscribe()">{{thread.subscribed == 't'?'Unsubscribe from':'Subscribe to'}} thread</a></p>
+					<div id="threadOptions" ng-if="thread.permissions.moderate" method="post">
+						<button type="submit" name="sticky" title="{{thread.sticky?'Uns':'S'}}ticky Thread" alt="{{thread.sticky?'Uns':'S'}}ticky Thread" ng-click="toggleThreadState('sticky')" ng-class="thread.sticky?'unsticky':'sticky'"></button>
+						<button type="submit" name="lock" title="{{thread.locked?'Unl':'L'}}ock Thread" alt="{{thread.locked?'Unl':'L'}}ock Thread" ng-click="toggleThreadState('locked')" ng-class="thread.locked?'unlock':'lock'"></button>
+					</div>
 					<a ng-if="thread.permissions.write" href="/forums/post/<?=$threadID?>/" class="fancyButton" skew-element>Reply</a>
 				</div>
 			</div>
-			<form id="poll" ng-if="!thread.locked && thread.poll" method="post" action="/forums/process/vote/">
+			<form id="poll" ng-if="thread.poll" method="post" ng-submit="pollVote($event)">
 				<p id="poll_question" ng-bind-html="thread.poll.question"></p>
-				<p ng-if="!thread.poll.voted || thread.poll.allowRevoting">You may select {{thread.poll.optionsPerUser > 1?'up to ':''}}<strong>{{thread.poll.optionsPerUser}}</strong> option{{thread.poll.optionsPerUser > 1?'s':''}}</p>
+				<p ng-if="thread.poll.canVote">You may select {{thread.poll.optionsPerUser > 1?'up to ':''}}<strong>{{thread.poll.optionsPerUser}}</strong> option{{thread.poll.optionsPerUser > 1?'s':''}}</p>
 				<ul>
 					<li ng-repeat="option in thread.poll.options" class="clearfix">
-						<span class="poll_input">
+						<span ng-if="thread.poll.canVote" class="poll_input">
 							<pretty-radio ng-if="thread.poll.optionsPerUser == 1" eleid="option_{{$index}}" radio="thread.poll.votes" r-value="$index"></pretty-radio>
 							<pretty-checkbox ng-if="thread.poll.optionsPerUser > 1" eleid="option_{{$index}}" checkbox="thread.poll.votes" value="$index"></pretty-checkbox>
 						</span>
 						<label for="option_{{$index}}" class="pointer poll_option">{{option.option}}</label>
-						<span ng-if="thread.poll.voted" class="poll_votesCast" ng-style="{ width: option.width }">{{option.numVotes}}, {{option.percentage}}%</span>
-						</label>
+						<span ng-if="!loggedIn || thread.poll.voted" class="poll_votesCast" ng-style="{ width: option.width }">{{option.numVotes}}, {{option.percentage}}%</span>
 					</li>
 				</ul>
-				<div id="poll_submit" ng-if="!thread.poll.voted || thread.poll.allowRevoting"><button type="submit" name="submit" class="fancyButton" skew-element>Vote</button></div>
+				<div id="poll_submit" ng-if="thread.poll.canVote"><button type="submit" name="submit" class="fancyButton" skew-element>Vote</button></div>
 			</form>
-<?	
-	$newPostMarked = false;
-?>
-			<div ng-repeat="post in thread.posts" class="postBlock clearfix" ng-class="{ 'postLeft': postSide == 'l', 'postRight': postSide == 'r', 'postAsChar': post.postAs, 'withCharAvatar': post.postAs && post.postAs.avatar }">
+			<div ng-repeat="post in thread.posts" class="postBlock clearfix" ng-class="{ 'postLeft': post.postSide == 'l', 'postRight': post.postSide == 'r', 'postAsChar': post.postAs, 'withCharAvatar': post.postAs && post.postAs.avatar }">
 				<a name="p{{post.postID}}"></a>
 				<a ng-if="post.newPost" name="newPost"></a>
 				<a ng-if="post.lastPost" name="lastPost"></a>
@@ -80,7 +76,7 @@
 					<p class="posterName"><a href="/user/{{post.author.userID}}/" class="username" ng-bind-html="post.author.username"></a> <img ng-if="post.author.isGM" src="/images/gm_icon.png"><user-inactive last-activity="post.author.lastActivity"></user-inactive></p>
 				</div>
 				<div class="postContent">
-					<div class="postPoint" ng-class="{ 'pointLeft': postSide == 'l', 'pointRight': postSide == 'r' }"></div>
+					<div class="postPoint" ng-class="{ 'pointLeft': post.postSide == 'l', 'pointRight': post.postSide == 'r' }"></div>
 					<header class="postHeader">
 						<div class="postedOn">{{post.datePosted | amUtc | amLocal | amDateFormat: 'MMMM Do, YYYY h:mm a'}}</div>
 						<div class="subject"><a href="?p={{post.postID}}#p{{post.postID}}" ng-bind-html="post.title"></a></div>
@@ -108,79 +104,34 @@
 					</div>
 				</div>
 				<div class="postActions">
-<?
-			if ($threadManager->getPermissions('write')) echo "						<a href=\"/forums/post/{$threadID}/?quote={$post->postID}\">Quote</a>\n";
-			if (($post->author->userID == $currentUser->userID && !$threadManager->getThreadProperty('states[locked]')) || $threadManager->getPermissions('moderate')) {
-				if ($threadManager->getPermissions('moderate') || $threadManager->getPermissions('editPost')) echo "					<a href=\"/forums/editPost/{$post->postID}/\">Edit</a>\n";
-				if ($threadManager->getPermissions('moderate') || $threadManager->getPermissions('deletePost') && $post->postID != $threadManager->getThreadProperty('firstPostID') || $threadManager->getPermissions('deleteThread') && $post->postID == $threadManager->getThreadProperty('firstPostID')) echo "					<a href=\"/forums/delete/{$post->postID}/\" class=\"deletePost\">Delete</a>\n";
-			}
-?>
+					<a ng-if="thread.permissions.write" href="/forums/post/{{thread.threadID}}/?quote={{post.postID}}">Quote</a>
+					<a ng-if="post.permissions.edit" href="/forums/editPost/{{post.postID}}/">Edit</a>
+					<a ng-if="post.permissions.delete" href="/forums/delete/{{post.postID}}/" class="deletePost" colorbox>Delete</a>
 				</div>
 			</div>
-<?
-			$postCount += 1;
-			if ($forumOptions['postSide'] == 'c') $postSide = $postSide == 'Right'?'Left':'Right';
-
-		$threadManager->displayPagination();
-	
-	if ($threadManager->getPermissions('moderate')) {
-?>
-			<div class="clearfix"><form id="quickMod" method="post" action="/forums/process/modThread/">
-<?
-	$sticky = $threadManager->thread->getStates('sticky')?'Unsticky':'Sticky';
-	$lock = $threadManager->thread->getStates('locked')?'Unlock':'lock';
-?>
+			<div class="clearfix"><paginate num-items="pagination.numPosts" items-per-page="pagination.itemsPerPage" current="pagination.current" change-func="changePage"></paginate></div>
+			<div ng-if="thread.permissions.moderate" class="clearfix"><form class="quickMod" ng-submit="submitQuickMod()">
 				Quick Mod Actions: 
-				<input type="hidden" name="threadID" value="<?=$threadID?>">
-				<select name="action">
-					<option value="lock"><?=ucwords($lock)?> Thread</option>
-					<option value="sticky"><?=ucwords($sticky)?> Thread</option>
-					<option value="move">Move Thread</option>
-				</select>
-				<button type="submit" name="go">Go</button>
+				<combobox id="quickMod" data="quickMod.combobox" value="quickMod.action" select returnAs="value"></combobox>
+				<button type="sfubmit" name="go">Go</button>
 			</form></div>
-<?	} ?>
 		</div>
 
-<?
-	if (($threadManager->getPermissions('write') && $currentUser->userID != 0 && !$threadManager->getThreadProperty('states[locked]')) || $threadManager->getPermissions('moderate')) {
-		$characters = array();
-		if ($gameID) {
-			$rCharacters = $mongo->characters->find(array('game.gameID' => $gameID, 'game.approved' => true, 'user.userID' => $currentUser->userID), array('characterID' => true, 'name' => true));
-			$characters = array();
-			foreach ($rCharacters as $character)
-				if (strlen($character['name'])) 
-					$characters[$character['characterID']] = $character['name'];
-		}
-?>
-		<form id="quickReply" method="post" action="/forums/process/post/">
-			<h2 class="headerbar hbDark">Quick Reply</h2>
-			<input type="hidden" name="threadID" value="<?=$threadID?>">
-			<input type="hidden" name="title" value="Re: <?=htmlspecialchars($threadManager->getThreadProperty('title'))?>">
-			<div class="hbdMargined">
-<?		if (sizeof($characters)) { ?>
-				<div id="charSelect" class="tr">
+		<form ng-if="loggedIn && ((thread.permissions.write && !thread.locked) || thread.permissions.moderate)" id="quickReply" method="post" action="/forums/post/<?=$threadID?>/">
+			<h2 class="headerbar hbDark" skew-element>Quick Reply</h2>
+			<div hb-margined>
+				<div ng-if="thread.characters != null" id="charSelect" class="tr">
 					<label>Post As:</label>
-					<div><select name="postAs">
-						<option value="p"<?=$currentChar == null?' selected="selected"':''?>>Player</option>
-<?			foreach ($characters as $characterID => $name) { ?>
-						<option value="<?=$characterID?>"<?=$currentChar == $characterID?' selected="selected"':''?>><?=$name?></option>
-<?			} ?>
-					</select></div>
+					<div><combobox data="characters" value="quickPost.postAs" select returnAs="value"></combobox></div>
 				</div>
-<?		} ?>			
-				<textarea id="messageTextArea" name="message"></textarea>
+				<textarea ng-model="quickPost.message" mark-it-up></textarea>
 			</div>
 			<div id="submitDiv" class="alignCenter">
-				<button type="submit" name="post" class="fancyButton">Post</button>
-				<button type="submit" name="advanced" class="fancyButton">Advanced</button>
+				<button type="submit" name="post" ng-click="saveQuickPost($event)" class="fancyButton" skew-element>Post</button>
+				<button type="submit" name="advanced" class="fancyButton" ng-click="advancedPost" skew-element>Advanced</button>
 			</div>
 		</form>
-<?
-	} elseif ($threadManager->getThreadProperty('states[locked]')) 
-		echo "\t\t\t<h2 class=\"alignCenter\">Thread locked</h2>\n";
-	else 
-		echo "\t\t\t<h2 class=\"alignCenter\">You do not have permission to post in this thread.</h2>\n";
-	
-	require_once(FILEROOT.'/footer.php');
-?>
+		<h2 ng-if="loggedIn && thread.locked && !thread.permissions.moderate" class="alignCenter">Thread locked</h2>
+		<h2 ng-if="loggedIn && !thread.permissions.write && !thread.permissions.moderate" class="alignCenter">You do not have permission to post in this thread.</h2>
+		<h2 ng-if="!loggedIn" class="alignCenter"><a href="/login/" colorbox>Login</a> or <a href="/register/">sign up to join this conversation!</a>
+<?	require_once(FILEROOT.'/footer.php'); ?>

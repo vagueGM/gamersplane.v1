@@ -1,8 +1,4 @@
 $(function() {
-	$('#messageTextArea').markItUp(mySettings);
-
-	$('.deletePost').colorbox();
-
 	$('#forumSub').click(function (e) {
 		e.preventDefault();
 
@@ -16,25 +12,48 @@ $(function() {
 	});
 });
 
-controllers.controller('thread', ['$scope', 'Range', 'CurrentUser', 'ForumsService', function ($scope, Range, CurrentUser, ForumsService) {
+controllers.controller('thread', ['$scope', '$location', 'Range', 'CurrentUser', 'ForumsService', function ($scope, $location, Range, CurrentUser, ForumsService) {
 	$scope.PAGINATE_PER_PAGE = PAGINATE_PER_PAGE;
 	$scope.$emit('pageLoading');
 	pathElements = getPathElements();
 	$scope.threadID = pathElements[2]?parseInt(pathElements[2]):0;
 	$scope.posts = [];
-	$scope.pagination = { current: parseInt($.urlParam('page')) > 0?parseInt($.urlParam('page')):1 };
+	$scope.pagination = {
+		numPosts: 1,
+		itemsPerPage: PAGINATE_PER_PAGE,
+		current: parseInt($.urlParam('page')) > 0?parseInt($.urlParam('page')):1
+	};
 	$scope.showAvatars = false;
-	$scope.postSide = 'l';
-	$scope.cardVis = ['Visible', 'Hidden']
+	var postSide = 'l';
+	$scope.cardVis = ['Visible', 'Hidden'];
+	$scope.quickMod = {
+		'combobox': { 'locked': 'Lock', 'sticky': 'Sticky', 'move': 'Move' },
+		'action': null
+	};
 	CurrentUser.load().then(function (loggedIn) {
 		$scope.loggedIn = loggedIn;
-		$scope.currentUser = CurrentUser.get();
-		if ($scope.currentUser.usermeta.postSide == 'r') 
-			$scope.postSide = 'r';
-		$scope.thread = {};
+		if (loggedIn) {
+			$scope.currentUser = CurrentUser.get();
+			if (['r', 'l', 'c'].indexOf($scope.currentUser.usermeta.postSide) > -1) 
+				postSide = $scope.currentUser.usermeta.postSide;
+			$scope.thread = {};
+			$scope.quickPost = {
+				'postAs': null,
+				'message': ''
+			}
+		}
+		loadThread();
+	});
+
+	function loadThread() {
 		ForumsService.getThread($scope.threadID, $scope.pagination.current).then(function (data) {
 			$scope.thread = data.thread;
+			if ($scope.thread.locked) 
+				$scope.quickMod.combobox.locked = 'Unlock';
+			if ($scope.thread.sticky) 
+				$scope.quickMod.combobox.sticky = 'Unsticky';
 			if ($scope.thread.poll) {
+				$scope.thread.poll.canVote = $scope.loggedIn && !$scope.thread.locked && (!$scope.thread.poll.voted || $scope.thread.poll.allowRevoting);
 				$scope.thread.poll.votes = $scope.thread.poll.optionsPerUser == 1?null:[];
 				$scope.thread.poll.options.forEach(function (option, index) {
 					if ((!$scope.thread.poll.voted || $scope.thread.poll.allowRevoting) && option.voted) {
@@ -47,9 +66,42 @@ controllers.controller('thread', ['$scope', 'Range', 'CurrentUser', 'ForumsServi
 					option.percentage = Math.floor(option.numVotes / $scope.thread.poll.totalVotes * 100);
 				});
 			}
+			$scope.thread.posts.forEach(function (post, index) {
+				post.postSide = postSide;
+				if ($scope.loggedIn && $scope.currentUser.usermeta.postSide == 'c') 
+					postSide = postSide == 'l'?'r':'l';
+				post.permissions = {
+					'edit': false,
+					'delete': false
+				};
+				if ($scope.loggedIn && (post.author.userID == $scope.currentUser.userID && !$scope.thread.locked) || $scope.thread.permissions.moderate) {
+					if ($scope.thread.permissions.editPost || $scope.thread.permissions.moderate) 
+						post.permissions.edit = true;
+					if ($scope.thread.permissions.moderate || ($scope.thread.permissions.deletePost && post.postID != $scope.thread.firstPostID) || ($scope.thread.permissions.deleteThread && post.postID == $scope.thread.firstPostID))
+						post.permissions.delete = true;
+				}
+			});
+			$scope.pagination.numPosts = $scope.thread.postCount;
+			$scope.characters = null;
+			if ($scope.thread.characters) {
+				$scope.characters = [{ 'value': 'player', 'display': 'Player' }];
+				for (key in $scope.thread.characters)
+					$scope.characters.push({ 'value': key, 'display': $scope.thread.characters[key] });
+			}
 			$scope.$emit('pageLoading');
 		});
-	});
+	};
+
+	$scope.toggleSubscribe = function () {
+		ForumsService.toggleSub('t', $scope.threadID).then(function (data) {
+			if (data.success) 
+				$scope.thread.subscribed = $scope.thread.subscribed == 't'?null:'t';
+		});
+	};
+
+	$scope.pollVote = function ($e) {
+		$e.preventDefault();
+	};
 
 	$scope.toggleCardVis = function (postID, deckID, card) {
 		if (Number.isInteger(postID) && Number.isInteger(deckID) && Number.isInteger(card.card)) {
@@ -58,6 +110,43 @@ controllers.controller('thread', ['$scope', 'Range', 'CurrentUser', 'ForumsServi
 					card.visible = !card.visible;
 			});
 		}
+	};
+
+	$scope.changePage = function () {
+		$scope.$emit('pageLoading');
+		loadThread();
+	};
+
+	$scope.toggleThreadState = function(state) {
+		if (state == 'locked' || state == 'sticky') {
+			ForumsService.toggleThreadState($scope.threadID, state).then(function (data) {
+				if (data.success) {
+					stateVal = data[state];
+					if (state == 'locked') {
+						$scope.thread.locked = stateVal;
+						$scope.quickMod.combobox.locked = $scope.quickMod.combobox.locked == 'Unlock'?'Lock':'Unlock';
+					} else {
+						$scope.thread.sticky = stateVal;
+						$scope.quickMod.combobox.sticky = $scope.quickMod.combobox.sticky == 'Unsticky'?'Sticky':'Unsticky';
+					}
+				}
+			});
+		}
+	};
+
+	$scope.submitQuickMod = function () {
+		var state = $scope.quickMod.action;
+		if (state == 'locked' || state == 'sticky') 
+			$scope.toggleThreadState(state);
+		else 
+			location.href = '/forums/moveThread/' + $scope.threadID + '/';
+	};
+
+	$scope.saveQuickPost = function ($event) {
+		$event.preventDefault();
+		ForumsService.savePost($.extend({ 'quickPost': true, 'threadID': $scope.threadID }, $scope.quickPost)).then(function (data) {
+			
+		});
 	};
 }]).directive('roll', ['ToolsService', function (ToolsService) {
 	return {
