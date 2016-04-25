@@ -161,7 +161,7 @@
 
 			$threads = [];
 			$threadIDs = [];
-			$rThreads = $mongo->threads->find(['forumID' => $this->forumID])->sort(['datePosted' => -1])->skip($offset)->limit(PAGINATE_PER_PAGE);
+			$rThreads = $mongo->threads->find(['forumID' => $this->forumID])->sort(['lastPost.datePosted' => -1])->skip($offset)->limit(PAGINATE_PER_PAGE);
 			foreach ($rThreads as $thread) 
 				$threadIDs[] = $thread['threadID'];
 			$readData = [];

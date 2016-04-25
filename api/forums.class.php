@@ -73,9 +73,10 @@
 			$markedRead = $forums[$forumID]['markedRead'];
 			foreach ($threads as &$thread) {
 				$thread = $thread->getThreadVars();
-				$thread['lastPost']['datePosted'] = $thread['lastPost']['datePosted']->sec;
+				$thread['datePosted'] = $thread['datePosted']* 1000;
+				$thread['lastPost']['datePosted'] = $thread['lastPost']['datePosted']->sec * 1000;
 				$maxRead = $markedRead > $thread['lastRead']?$markedRead:$thread['lastRead'];
-				$thread['newPosts'] = $thread['lastPost']['datePosted'] > $maxRead?true:false;
+				$thread['newPosts'] = $thread['lastPost']['datePosted'] / 1000 > $maxRead?true:false;
 			}
 			return $threads;
 		}
@@ -108,8 +109,11 @@
 					$newPost = true;
 				}
 				$post['lastPost'] = false;
-				if ($post['datePosted'] == $post['postID']) 
+				if ($threadManager->getLastPost('postID') == $post['postID']) {
 					$post['lastPost'] = true;
+					if (!$newPost) 
+						$post['newPost'] = true;
+				}
 				$post['datePosted'] *= 1000;
 				$posts[] = $post;
 
@@ -117,13 +121,14 @@
 					$maxPost = $post['datePosted'];
 			}
 			if ($maxPost > $lastRead) 
-				$mongo->forumsReadData->update(['threadID' => $threadID], [
-					'userID' => $currentUser->userID,
-					'type' => 'thread',
-					'threadID' => $threadID,
-					'forumID' => $threadManager->getThreadProperty('forumID'),
-					'lastRead' => new MongoDate($lastRead)
-				], ['upsert' => true]);
+				$threadManager->updateLastRead($maxPost / 1000);
+				// $mongo->forumsReadData->update(['threadID' => $threadID], [
+				// 	'userID' => $currentUser->userID,
+				// 	'type' => 'thread',
+				// 	'threadID' => $threadID,
+				// 	'forumID' => $threadManager->getThreadProperty('forumID'),
+				// 	'lastRead' => new MongoDate($maxPost / 1000)
+				// ], ['upsert' => true]);
 			$rPostAsChars = $mongo->characters->find(['characterID' => ['$in' => $getChars]], ['characterID' => true, 'system' => true, 'name' => true]);
 			$postAsChars = [];
 			foreach ($rPostAsChars as $character) {
@@ -205,7 +210,7 @@
 				'title' => $threadManager->getThreadProperty('title'),
 				'forumID' => (int) $threadManager->getThreadProperty('forumID'),
 				'forumHeritage' => $threadManager->forumManager->getHeritage(),
-				'firstPostID' => (int) $threadManager->thread->firstPostID,
+				'firstPostID' => (int) $threadManager->getThreadProperty('firstPostID'),
 				'sticky' => (bool) $threadManager->thread->getStates('sticky'),
 				'locked' => (bool) $threadManager->thread->getStates('locked'),
 				'allowRolls' => (bool) $threadManager->getThreadProperty('allowRolls'),
@@ -216,6 +221,7 @@
 				'permissions' => $threadManager->getPermissions(),
 				'poll' => $poll,
 				'posts' => $posts,
+				'page' => $threadManager->page,
 				'characters' => isset($characters)?$characters:null,
 				'game' => $game
 			];
@@ -519,9 +525,9 @@
 					displayJSON(['failed' => true, 'errors' => $errors]);
 				else {
 					$postID = $post->savePost();
-					$threadManager->updateLastPost($post->postID, ['userID' => $currentUser->userID, 'username' => $currentUser->username], $post->datePosted);
+					$threadManager->updateLastPost($post->postID, ['userID' => $currentUser->userID, 'username' => $currentUser->username], $post->getDatePosted());
 					$threadManager->updatePostCount();
-					$threadManager->updateLastRead($postID);
+					$threadManager->updateLastRead($post->getDatePosted());
 				}
 			} elseif ($_POST['edit']) {
 				$threadManager = new ThreadManager($post->getThreadID());
@@ -612,7 +618,7 @@
 				}
 			}
 
-			displayJSON(['success' => true]);
+			displayJSON(['success' => true, 'postID' => $postID]);
 		}
 	}
 ?>

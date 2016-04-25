@@ -1,2 +1,3 @@
 UPDATE dispatch SET ngController = 'forum' WHERE pageID = 'forum';
 UPDATE dispatch SET ngController = 'thread' WHERE pageID = 'forum_thread';
+UPDATE dispatch SET ngController = 'deletePost', modalWidth = null WHERE pageID = 'forum_delete';

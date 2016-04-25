@@ -63,10 +63,10 @@
 				</ul>
 				<div id="poll_submit" ng-if="thread.poll.canVote"><button type="submit" name="submit" class="fancyButton" skew-element>Vote</button></div>
 			</form>
-			<div ng-repeat="post in thread.posts" class="postBlock clearfix" ng-class="{ 'postLeft': post.postSide == 'l', 'postRight': post.postSide == 'r', 'postAsChar': post.postAs, 'withCharAvatar': post.postAs && post.postAs.avatar }">
+			<div ng-repeat="post in thread.posts" ng-attr-id="post_{{post.postID}}" class="postBlock clearfix" ng-class="{ 'postLeft': post.postSide == 'l', 'postRight': post.postSide == 'r', 'postAsChar': post.postAs, 'withCharAvatar': post.postAs && post.postAs.avatar }">
 				<a name="p{{post.postID}}"></a>
-				<a ng-if="post.newPost" name="newPost"></a>
-				<a ng-if="post.lastPost" name="lastPost"></a>
+				<a ng-if="post.newPost" id="newPost"></a>
+				<a ng-if="post.lastPost" id="lastPost"></a>
 				<div class="posterDetails">
 					<avatar user="post.author" char="post.postAs"></avatar>
 					<span ng-if="post.postAs">
@@ -79,7 +79,7 @@
 					<div class="postPoint" ng-class="{ 'pointLeft': post.postSide == 'l', 'pointRight': post.postSide == 'r' }"></div>
 					<header class="postHeader">
 						<div class="postedOn">{{post.datePosted | amUtc | amLocal | amDateFormat: 'MMMM Do, YYYY h:mm a'}}</div>
-						<div class="subject"><a href="?p={{post.postID}}#p{{post.postID}}" ng-bind-html="post.title"></a></div>
+						<div class="subject"><a href="?p={{post.postID}}##p{{post.postID}}" ng-bind-html="post.title"></a></div>
 					</header>
 					<div class="post">
 						<span ng-bind-html="post.message"></span>
@@ -106,7 +106,7 @@
 				<div class="postActions">
 					<a ng-if="thread.permissions.write" href="/forums/post/{{thread.threadID}}/?quote={{post.postID}}">Quote</a>
 					<a ng-if="post.permissions.edit" href="/forums/editPost/{{post.postID}}/">Edit</a>
-					<a ng-if="post.permissions.delete" href="/forums/delete/{{post.postID}}/" class="deletePost" colorbox>Delete</a>
+					<a ng-if="post.permissions.delete" href="/forums/delete/{{post.postID}}/">Delete</a>
 				</div>
 			</div>
 			<div class="clearfix"><paginate num-items="pagination.numPosts" items-per-page="pagination.itemsPerPage" current="pagination.current" change-func="changePage"></paginate></div>

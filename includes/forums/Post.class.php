@@ -190,7 +190,7 @@
 				$postData['datePosted'] = new MongoDate();
 				$mongo->posts->insert($postData);
 				$this->postID = $postData['postID'];
-				$this->datePosted = $postData['postAs']->sec;
+				$this->datePosted = $postData['datePosted']->sec;
 			} else {
 				unset($postData['postID'], $postData['threadID'], $postData['authorID'], $postData['datePosted']);
 				$mongo->posts->update(['postID' => $this->postID], ['$set' => $postData]);

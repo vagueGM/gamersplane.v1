@@ -75,16 +75,16 @@
 				<div ng-repeat="thread in threads" class="tr">
 					<div class="td icon"><div class="forumIcon" ng-class="{ 'sticky': thread.state.sticky, 'locked': thread.state.locked, 'newPosts': thread.newPosts }" title="{{thread.newPosts?'New':'No new'}} posts in thread" alt="{{thread.newPosts?'New':'No new'}} posts in thread"></div></div>
 					<div class="td threadInfo">
-						<a ng-if="thread.newPosts" href="/forums/thread/{{thread.threadID}}/?view=newPost#newPost"><img src="/images/forums/newPost.png" title="View new posts" alt="View new posts"></a>
+						<a ng-if="thread.newPosts" href="/forums/thread/{{thread.threadID}}/?view=newPost##newPost"><img src="/images/forums/newPost.png" title="View new posts" alt="View new posts"></a>
 						<div class="paginateDiv">
 							<span ng-if="thread.postCount > PAGINATE_PER_PAGE">
 								<span ng-if="getNumPages(thread.postCount) > 4">
-									<a href="<?=$url?>?page=1">1</a>
+									<a href="<?=$url?>/page/1/">1</a>
 									<div>...</div>
 								</span>
-								<a ng-repeat="page in paginateThread(thread.postCount)" href="/forums/thread/{{thread.threadID}}/?page={{page}}">{{page}}</a>
+								<a ng-repeat="page in paginateThread(thread.postCount)" href="/forums/thread/{{thread.threadID}}/?page={{page}}##p{{page}}">{{page}}</a>
 							</span>
-							<a href="/forums/thread/{{thread.threadID}}/?view=lastPost#lastPost"><img src="/images/downArrow.png" title="Last post" alt="Last post"></a>
+							<a href="/forums/thread/{{thread.threadID}}/?view=lastPost##lastPost"><img src="/images/downArrow.png" title="Last post" alt="Last post"></a>
 						</div>
 						<a href="/forums/thread/{{thread.threadID}}/" ng-bind-html="thread.title"></a><br>
 						<span class="threadAuthor">by <a href="/user/{{thread.author.userID}}/" class="username" ng-bind-html="thread.author.username"></a> on <span>{{thread.datePosted | amUtc | amLocal | amDateFormat: 'MMM D, YYYY h:mm a'}}</span></span>

@@ -81,19 +81,28 @@
 		public function setPage() {
 			global $mongo;
 
-			if (isset($_GET['view']) && $_GET['view'] == 'newPost') {
-				$numPrevPosts = $mongo->posts->find(['threadID' => $this->threadID, 'datePosted' => ['$lt' => new MongoDate($this->getThreadLastRead())]])->count() + 1;
-				$page = $numPrevPosts?ceil($numPrevPosts / PAGINATE_PER_PAGE):1;
-			} elseif (isset($_GET['view']) && $_GET['view'] == 'lastPost') {
-				$numPrevPosts = $this->getThreadProperty('postCount');
-				$page = $numPrevPosts?ceil($numPrevPosts / PAGINATE_PER_PAGE):1;
-			} elseif (isset($_GET['p']) && intval($_GET['p'])) {
-				$postID = intval($_GET['p']);
-				$datePosted = $mongo->posts->findOne(['postID' => $postID], ['datePosted']);
-				$numPrevPosts = $mongo->posts->find(['threadID' => $this->threadID, 'datePosted' => ['$lt' => $datePosted['datePosted']]])->count();
-				$page = $numPrevPosts?ceil($numPrevPosts / PAGINATE_PER_PAGE):1;
-			} else 
-				$page = intval($_POST['page']);
+			switch ($_POST['view']) {
+				case 'newPost':
+					$numPrevPosts = $mongo->posts->find(['threadID' => $this->threadID, 'datePosted' => ['$lt' => new MongoDate($this->getThreadLastRead())]])->count() + 1;
+					$page = $numPrevPosts?ceil($numPrevPosts / PAGINATE_PER_PAGE):1;
+					break;
+				case 'lastPost':
+					$numPrevPosts = $this->getThreadProperty('postCount');
+					$page = $numPrevPosts?ceil($numPrevPosts / PAGINATE_PER_PAGE):1;
+					break;
+				case 'post':
+					$postID = intval($_POST['viewVal']);
+					if ($postID <= 0) {
+						$page = 1;
+						break;
+					}
+					$datePosted = $mongo->posts->findOne(['postID' => $postID], ['datePosted']);
+					$numPrevPosts = $mongo->posts->find(['threadID' => $this->threadID, 'datePosted' => ['$lte' => $datePosted['datePosted']]], ['_id' => true])->count();
+					$page = $numPrevPosts?ceil($numPrevPosts / PAGINATE_PER_PAGE):1;
+					break;
+				default:
+					$page = intval($_POST['viewVal']);
+			}
 			$this->page = intval($page) > 0?intval($page):1;
 		}
 
@@ -123,11 +132,12 @@
 			}
 		}
 
-		public function updatePostCount() {
+		public function updatePostCount($increase = true) {
 			global $mongo;
 
-			$count = $mongo->posts->find(['threadID' => $this->threadID], ['_id' => true])->count();
-			$mongo->threads->update(['threadID' => $this->threadID], ['$set' => ['postCount' => $count]]);
+			$increment = $increase?1:-1;
+			$mongo->threads->update(['threadID' => $this->threadID], ['$inc' => ['postCount' => $increment]]);
+			$mongo->forums->update(['forumID' => $this->getThreadProperty('forumID')], ['$inc' => ['postCount' => $increment]]);
 		}
 
 		public function getPoll() {
@@ -223,9 +233,9 @@
 			]]]);
 		}
 
-		public function updateLastRead($postID) {
+		public function updateLastRead($datePosted) {
 			global $loggedIn, $mongo, $currentUser;
-			if ($loggedIn && $postID > $this->getThreadProperty('lastRead')) 
+			if ($loggedIn && $datePosted > $this->getThreadProperty('lastRead')) 
 				$mongo->forumsReadData->update([
 					'userID' => $currentUser->userID,
 					'type' => 'thread',
@@ -235,7 +245,7 @@
 					'type' => 'thread',
 					'threadID' => $this->threadID,
 					'forumID' => $this->thread->forumID,
-					'markedRead' => new MongoDate()
+					'lastRead' => new MongoDate()
 				], ['upsert' => true]);
 		}
 

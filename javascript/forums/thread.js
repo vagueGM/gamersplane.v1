@@ -1,28 +1,24 @@
-$(function() {
-	$('#forumSub').click(function (e) {
-		e.preventDefault();
-
-		$link = $(this);
-		$.get($(this).attr('href'), {}, function (data) {
-			if ($link.text().substring(0, 3) == 'Uns') 
-				$link.text('Subscribe to ' + $link.text().split(' ')[2]);
-			else 
-				$link.text('Unsubscribe from ' + $link.text().split(' ')[2]);
-		});
-	});
-});
-
-controllers.controller('thread', ['$scope', '$location', 'Range', 'CurrentUser', 'ForumsService', function ($scope, $location, Range, CurrentUser, ForumsService) {
+controllers.controller('thread', ['$scope', '$location', '$timeout', '$anchorScroll', 'Range', 'CurrentUser', 'ForumsService', function ($scope, $location, $timeout, $anchorScroll, Range, CurrentUser, ForumsService) {
 	$scope.PAGINATE_PER_PAGE = PAGINATE_PER_PAGE;
 	$scope.$emit('pageLoading');
-	pathElements = getPathElements();
+	var pathElements = getPathElements();
 	$scope.threadID = pathElements[2]?parseInt(pathElements[2]):0;
 	$scope.posts = [];
 	$scope.pagination = {
 		numPosts: 1,
 		itemsPerPage: PAGINATE_PER_PAGE,
-		current: parseInt($.urlParam('page')) > 0?parseInt($.urlParam('page')):1
+		current: $.urlParam('page') && parseInt($.urlParam('page')) >= 1?parseInt($.urlParam('page')):1
 	};
+	var view = 'page';
+	var viewVal = $scope.pagination.current;
+	if ($.urlParam('p') && parseInt($.urlParam('p'))) {
+		view = 'post';
+		viewVal = parseInt($.urlParam('p'));
+	} else if ($.urlParam('view') && $.urlParam('view') == 'newPost') {
+		view = 'newPost';
+	} else if ($.urlParam('view') && $.urlParam('view') == 'lastPost') {
+		view = 'lastPost';
+	}
 	$scope.showAvatars = false;
 	var postSide = 'l';
 	$scope.cardVis = ['Visible', 'Hidden'];
@@ -46,7 +42,7 @@ controllers.controller('thread', ['$scope', '$location', 'Range', 'CurrentUser',
 	});
 
 	function loadThread() {
-		ForumsService.getThread($scope.threadID, $scope.pagination.current).then(function (data) {
+		ForumsService.getThread($scope.threadID, view, viewVal).then(function (data) {
 			$scope.thread = data.thread;
 			if ($scope.thread.locked) 
 				$scope.quickMod.combobox.locked = 'Unlock';
@@ -81,6 +77,7 @@ controllers.controller('thread', ['$scope', '$location', 'Range', 'CurrentUser',
 						post.permissions.delete = true;
 				}
 			});
+			$scope.pagination.current = $scope.thread.page;
 			$scope.pagination.numPosts = $scope.thread.postCount;
 			$scope.characters = null;
 			if ($scope.thread.characters) {
@@ -89,7 +86,14 @@ controllers.controller('thread', ['$scope', '$location', 'Range', 'CurrentUser',
 					$scope.characters.push({ 'value': key, 'display': $scope.thread.characters[key] });
 			}
 			$scope.$emit('pageLoading');
+			$timeout(function () {
+				$scope.goToPost();
+			});
 		});
+	};
+
+	$scope.goToPost = function () {
+		$anchorScroll();
 	};
 
 	$scope.toggleSubscribe = function () {
@@ -114,6 +118,9 @@ controllers.controller('thread', ['$scope', '$location', 'Range', 'CurrentUser',
 
 	$scope.changePage = function () {
 		$scope.$emit('pageLoading');
+		$location.hash('');
+		view = 'page';
+		viewVal = $scope.pagination.current;
 		loadThread();
 	};
 
@@ -144,8 +151,16 @@ controllers.controller('thread', ['$scope', '$location', 'Range', 'CurrentUser',
 
 	$scope.saveQuickPost = function ($event) {
 		$event.preventDefault();
+		$scope.$emit('pageLoading');
 		ForumsService.savePost($.extend({ 'quickPost': true, 'threadID': $scope.threadID }, $scope.quickPost)).then(function (data) {
-			
+			if (data.success) {
+				location.href = '/forums/thread/' + $scope.threadID + '/?p=' + data.postID + '##p' + data.postID;
+/*				$location.hash('p' + data.postID);
+				view = 'post';
+				viewVal = data.postID;
+				loadThread();*/
+			} else 
+				$scope.$emit('pageLoading');
 		});
 	};
 }]).directive('roll', ['ToolsService', function (ToolsService) {

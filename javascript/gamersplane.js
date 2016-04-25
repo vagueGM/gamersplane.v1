@@ -341,8 +341,11 @@ app.config(['$httpProvider', function ($httpProvider) {
 			page = 1;
 		return $http.post(API_HOST + '/forums/getThreads/', { forumID: forumID, page: page }).then(function (data) { return data.data; });
 	};
-	this.getThread = function (threadID, page) {
-		return $http.post(API_HOST + '/forums/getThread/', { threadID: threadID, page: page }).then(function (data) { return data.data; });
+	this.getThread = function (threadID, view, viewVal) {
+		params = { threadID: threadID, view: view, viewVal: viewVal }
+		if (view == 'newPost') 
+			delete params.viewVal;
+		return $http.post(API_HOST + '/forums/getThread/', params).then(function (data) { return data.data; });
 	}
 	this.markAsRead = function (forumID) {
 		return $http.post(API_HOST + '/forums/markAsRead/', { forumID: forumID }).then(function (data) { return data.data; });

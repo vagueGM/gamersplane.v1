@@ -9,6 +9,7 @@
 		protected $allowRolls = false;
 		protected $allowDraws = false;
 		protected $postCount = 0;
+		protected $firstPostID = null;
 		protected $lastPost = null;
 		protected $lastRead = 0;
 		protected $subscribed = false;
