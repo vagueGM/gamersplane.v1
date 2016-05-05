@@ -1,6 +1,6 @@
 <?
 	class ForumManager {
-		protected $currentForum;
+		public $currentForum;
 		protected $forumsData = array();
 		public $forums = array();
 		protected $lastRead = array();
@@ -215,12 +215,21 @@
 			$forum = $this->forums[$forumID];
 
 			$total = 0;
-			if (sizeof($forum->children)) {
+			if (sizeof($forum->children)) 
 				foreach ($forum->children as $cForumID) 
 					$total += $this->getTotalPostCount($cForumID);
-			}
-			if ($forum->permissions['read']) $total += $forum->postCount;
+			if ($forum->permissions['read']) 
+				$total += $forum->postCount;
 			return $total;
+		}
+
+		public function updatePostCount($increment) {
+			global $mongo;
+
+			$increment = (int) $increment;
+			$mongo->forums->update(['forumID' => $this->currentForum], ['$inc' => ['postCount' => $increment]]);
+
+			return true;
 		}
 
 		public function maxRead($forumID) {
@@ -261,6 +270,18 @@
 			if ($forum->permissions['read'] && $forum->lastPost->postID > $lastPost->postID) return $forum->lastPost;
 			elseif ($lastPost->postID != 0) return $lastPost;
 			else return null;
+		}
+
+		public function updateLatestPost($updateObj = null) {
+			global $mongo;
+
+			if ($updateObj) 
+				$mongo->forums->update(['forumID' => $this->currentForum], ['$set' => ['latestPost' => $updateObj]]);
+			else {
+				$latestPost = $mongo->threads->find(['forumID' => $this->currentForum], ['threadID', 'lastPost'])->sort(['lastPost.datePosted' => -1])->limit(1);
+				$latestPost = $latestPost->getNext();
+				$mongo->forums->update(['forumID' => $this->currentForum], ['$set' => array_merge(['threadID' => $latestPost['threadID']], $latestPost['lastPost'])]);
+			}
 		}
 
 		public function getHeritage() {

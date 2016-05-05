@@ -168,10 +168,9 @@
 		}
 
 		public function delete() {
-			global $mysql;
+			global $mongo;
 
-			$mysql->query("DELETE FROM po, pv USING forums_pollOptions po LEFT JOIN forums_pollVotes pv ON po.pollOptionID = pv.pollOptionID WHERE po.threadID = {$this->threadID}");
-			$mysql->query("DELETE FROM forums_polls WHERE threadID = {$this->threadID}");
+			return $mongo->polls->remove(['threadID' => $this->threadID]);
 		}
 
 		public function getPollVars() {

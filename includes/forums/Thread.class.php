@@ -98,7 +98,7 @@
 			if (!$loggedIn) 
 				return false;
 
-			if ($this->lastPost->postID > $this->lastRead && $this->lastPost->postID > $markedRead) 
+			if ($this->lastPost->datePosted > $this->lastRead && $this->lastPost->datePosted > $markedRead) 
 				return true;
 			else 
 				return false;
@@ -134,6 +134,30 @@
 			return $this->posts;
 		}
 
+		public function getPost($postID, $postData = null) {
+			$postID = (int) $postID;
+			if (sizeof($this->posts) && $this->posts[$postID]) 
+				return $this->posts[$postID];
+
+			global $loggedIn, $currentUser, $mysql, $mongo;
+
+			if ($postData == null) 
+				$post = $mongo->posts->findOne(['postID' => $postID]);
+			else 
+				$post = $postData;
+			$rUser = $mysql->query("SELECT u.userID, u.username, um.metaValue avatarExt, u.lastActivity FROM users u LEFT JOIN usermeta um ON u.userID = um.userID AND um.metaKey = 'avatarExt' WHERE u.userID = {$post['authorID']} LIMIT 1");
+			$author = $rUser->fetch();
+			$author = [
+				'userID' => (int) $author['userID'],
+				'username' => $author['username'],
+				'avatarExt' => $author['avatarExt'],
+				'lastActivity' => strtotime($author['lastActivity'])
+			];
+			$this->posts[$postID] = new Post(array_merge($post, ['author' => $author]));
+
+			return $this->posts[$postID];
+		}
+
 		public function getPoll() {
 			if (in_array('poll', $this->loaded)) 
 				return true;
@@ -155,6 +179,7 @@
 		public function deletePoll() {
 			$this->poll->delete();
 			$this->poll = new ForumPoll();
+
 			return true;
 		}
 
@@ -172,6 +197,17 @@
 
 		public function getThreadVars() {
 			return get_object_vars($this);
+		}
+
+		public function delete() {
+			global $mongo;
+
+			$this->deletePoll();
+			$mongo->forumsReadData->remove(['threadID' => $this->threadID]);
+			$mongo->posts->remove(['threadID' => $this->threadID]);
+			$mongo->threads->remove(['threadID' => $this->threadID]);
+
+			return true;
 		}
 	}
 ?>

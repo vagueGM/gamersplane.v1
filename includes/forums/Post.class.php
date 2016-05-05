@@ -204,9 +204,9 @@
 		}
 
 		public function delete() {
-			global $mysql;
+			global $mongo;
 
-			$mysql->query('DELETE FROM posts, rolls, deckDraws USING posts LEFT JOIN rolls ON posts.postID = rolls.postID LEFT JOIN deckDraws ON posts.postID = deckDraws.postID WHERE posts.postID = '.$this->postID);
+			$mongo->posts->remove(['postID' => (int) $this->postID]);
 		}
 
 		public function getPostVars() {

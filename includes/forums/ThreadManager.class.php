@@ -110,6 +110,10 @@
 			return $this->thread->getPosts($this->page);
 		}
 
+		public function getPost($postID, $postData = null) {
+			return $this->thread->getPost($postID, $postData);
+		}
+
 		public function getKeyPost() {
 			global $mongo;
 
@@ -132,12 +136,14 @@
 			}
 		}
 
-		public function updatePostCount($increase = true) {
+		public function updatePostCount($increment = 1) {
 			global $mongo;
 
-			$increment = $increase?1:-1;
+			$increment = (int) $increment;
 			$mongo->threads->update(['threadID' => $this->threadID], ['$inc' => ['postCount' => $increment]]);
-			$mongo->forums->update(['forumID' => $this->getThreadProperty('forumID')], ['$inc' => ['postCount' => $increment]]);
+			$this->forumManager->updatePostCount($increment);
+
+			return true;
 		}
 
 		public function getPoll() {
@@ -216,7 +222,7 @@
 			return $postID;
 		}
 
-		public function updateLastPost($postID, $author, $datePosted) {
+		public function updateLastPost($postID, $author, $datePosted, $delete) {
 			global $mongo;
 
 			$datePosted = new MongoDate($datePosted);
@@ -225,12 +231,12 @@
 				'author' => $author,
 				'datePosted' => $datePosted
 			]]]);
-			$mongo->forums->update(['forumID' => $this->thread->forumID], ['$set' => ['lastPost' => [
+			$this->forumManager->updateLatestPost(!$delete?[
 				'threadID' => $this->threadID,
 				'postID' => $postID,
 				'author' => $author,
 				'datePosted' => $datePosted
-			]]]);
+			]:null);
 		}
 
 		public function updateLastRead($datePosted) {
@@ -254,21 +260,31 @@
 		}
 
 		public function deletePost($post) {
-			global $mysql;
+			global $mysql, $mongo;
 
-			$post->delete();
-			if ($post->getPostID() == $this->getLastPost('postID')) {
-				$newLPID = $mysql->query("SELECT postID FROM posts WHERE threadID = {$this->threadID} ORDER BY datePosted DESC LIMIT 1")->fetchColumn();
-				$mysql->query("UPDATE threads SET lastPostID = {$newLPID} WHERE threadID = {$this->threadID}");
+			if ($post->getPostID() == $this->getFirstPostID()) 
+				$this->deleteThread();
+			else {
+				$post->delete();
+				if ($post->getPostID() == $this->getLastPost('postID')) {
+					$lastPost = $mongo->posts->find(['threadID' => $this->threadID], ['postID' => true, 'authorID' => true, 'datePosted' => true])->sort(['datePosted' => -1])->limit(1);
+					$lastPost = $lastPost->getNext();
+					$authorUsername = $mysql->query("SELECT username FROM users WHERE userID = {$lastPost['authorID']} LIMIT 1")->fetchColumn();
+					$this->updateLastPost($lastPost['postID'], ['userID' => $lastPost['authorID'], 'username' => $authorUsername], $lastPost['datePosted']->sec, true);
+				}
 			}
 			$this->updatePostCount();
+
+			return true;
 		}
 
 		public function deleteThread() {
-			global $mysql;
+			global $mongo;
 
-			$mysql->query("DELETE FROM threads, posts, rolls, deckDraws USING threads LEFT JOIN posts ON threads.threadID = posts.threadID LEFT JOIN rolls ON posts.postID = rolls.postID LEFT JOIN deckDraws ON posts.postID = deckDraws.postID WHERE threads.threadID = {$this->threadID}");
-			$mysql->query("UPDATE forums SET threadCount = threadCount - 1 WHERE forumID = {$this->thread->forumID}");
+			$this->thread->delete();
+			$this->forumManager->updateLatestPost();
+
+			return true;
 		}
 	}
 ?>

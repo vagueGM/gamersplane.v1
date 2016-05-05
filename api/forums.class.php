@@ -28,6 +28,10 @@
 				$this->toggleThreadState();
 			elseif ($pathOptions[0] == 'savePost') 
 				$this->savePost();
+			elseif ($pathOptions[0] == 'getPost') 
+				$this->getPost();
+			elseif ($pathOptions[0] == 'deletePost') 
+				$this->deletePost();
 			else 
 				displayJSON(array('failed' => true));
 		}
@@ -619,6 +623,68 @@
 			}
 
 			displayJSON(['success' => true, 'postID' => $postID]);
+		}
+
+		public function getPost() {
+			global $mongo;
+			$postID = (int) $_POST['postID'];
+			$basic = (bool) $_POST['basic'];
+
+			$postData = $mongo->posts->findOne(['postID' => $postID]);
+			$threadManager = new ThreadManager($postData['threadID']);
+			$post = $threadManager->getPost($postID, $postData);
+			$post = $post->getPostVars();
+			$post['message'] = printReady(BBCode2Html($post['message'], $post));
+
+			$thread = [
+				'threadID' => $threadManager->getThreadID(),
+				'title' => $threadManager->getThreadProperty('title'),
+				'forumID' => (int) $threadManager->getThreadProperty('forumID'),
+				'forumHeritage' => $threadManager->forumManager->getHeritage(),
+				'firstPostID' => (int) $threadManager->getThreadProperty('firstPostID'),
+				'sticky' => (bool) $threadManager->thread->getStates('sticky'),
+				'locked' => (bool) $threadManager->thread->getStates('locked'),
+				'allowRolls' => (bool) $threadManager->getThreadProperty('allowRolls'),
+				'allowDraws' => (bool) $threadManager->getThreadProperty('allowDraws'),
+				'postCount' => $threadManager->getThreadProperty('postCount'),
+				'lastRead' => $threadManager->getThreadProperty('lastRead'),
+//				'subscribed' => $subscribed,
+				'permissions' => $threadManager->getPermissions(),
+//				'poll' => $poll,
+				'post' => $post,
+//				'characters' => isset($characters)?$characters:null,
+//				'game' => $game
+			];
+
+			displayJSON(['success' => true, 'thread' => $thread]);
+		}
+
+		public function deletePost() {
+			global $currentUser, $mongo;
+			$postID = (int) $_POST['postID'];
+
+			$postData = $mongo->posts->findOne(['postID' => $postID]);
+			if (!$postData) 
+				displayJSON(['failed' => true, 'noPost' => true]);
+			$threadManager = new ThreadManager($postData['threadID']);
+			$post = $threadManager->getPost($postID, $postData);
+			$deleteType = $threadManager->getFirstPostID() == $postID?'thread':'post';
+
+			if (!(
+				$threadManager->getPermissions('moderate') || 
+				($post->getAuthor('userID') == $currentUser->userID && $deleteType == 'post' && $threadManager->getPermissions('deletePost')) || 
+				($post->getAuthor('userID') == $currentUser->userID && $deleteType == 'thread' && $threadManager->getPermissions('deleteThread'))
+			)) 
+				displayJSON(['failed' => true, 'noPermission' => true]);
+
+			$threadManager->deletePost($post);
+
+			$return = ['success' => true, 'deleteType' => $deleteType];
+			if ($deleteType == 'thread') 
+				$return['forumID'] = $threadManager->getThreadProperty('forumID');
+			else 
+				$return['threadID'] = $threadManager->getThreadID() ;
+			displayJSON($return);
 		}
 	}
 ?>

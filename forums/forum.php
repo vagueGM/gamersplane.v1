@@ -20,7 +20,7 @@
 
 		<div id="topLinks" class="clearfix hbMargined">
 			<div id="breadcrumbs" ng-if="forumID != 0">
-				<a href="" ng-repeat="hForumID in currentForum.heritage" ng-bind-html="forums[hForumID].title"></a>
+				<a ng-repeat="hForumID in currentForum.heritage" href="/forums/{{hForumID}}/" ng-bind-html="forums[hForumID].title"></a>
 			</div>
 			<div class="floatRight alignRight">
 				<div ng-if="forumID == 0"><a href="/forums/search/?search=latestPosts">Latest Posts</a></div>

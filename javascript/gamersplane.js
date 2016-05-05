@@ -346,7 +346,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 		if (view == 'newPost') 
 			delete params.viewVal;
 		return $http.post(API_HOST + '/forums/getThread/', params).then(function (data) { return data.data; });
-	}
+	};
 	this.markAsRead = function (forumID) {
 		return $http.post(API_HOST + '/forums/markAsRead/', { forumID: forumID }).then(function (data) { return data.data; });
 	};
@@ -387,6 +387,15 @@ app.config(['$httpProvider', function ($httpProvider) {
 		return $http.post(API_HOST + '/forums/savePost/', postData).then(function (data) {2
 			return data.data;
 		});
+	};
+	this.getPost = function (postID, basic) {
+		params = { 'postID': postID, 'basic': false };
+		if (basic == true) 
+			params.basic = true;
+		return $http.post(API_HOST + '/forums/getPost/', params).then(function (data) { return data.data; });
+	};
+	this.deletePost = function (postID) {
+		return $http.post(API_HOST + '/forums/deletePost/', { 'postID': postID }).then(function (data) { return data.data; });
 	};
 }]).service('Links', ['$http', function ($http) {
 	this.categories = [ 'Blog', 'Podcast', 'Videocast', 'Liveplay', 'Devs', 'Accessories' ];
