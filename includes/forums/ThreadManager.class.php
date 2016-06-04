@@ -11,10 +11,10 @@
 
 				$this->threadID = intval($threadID);
 				$this->thread = $mongo->threads->findOne(['threadID' => $threadID]);
-				if (!$this->thread) 
+				if (!$this->thread)
 					return false;
 				$lastRead = $mongo->forumsReadData->findOne(['userID' => $currentUser->userID, 'threadID' => $this->threadID], ['lastRead' => true]);
-				if ($lastRead) 
+				if ($lastRead)
 					$this->thread['lastRead'] = $lastRead['lastRead'];
 				$this->thread = new Thread($this->thread);
 
@@ -29,12 +29,12 @@
 		}
 
 		public function __get($key) {
-			if (property_exists($this, $key)) 
+			if (property_exists($this, $key))
 				return $this->$key;
 		}
 
 		public function __set($key, $value) {
-			if (property_exists($this, $key)) 
+			if (property_exists($this, $key))
 				$this->$key = $value;
 		}
 
@@ -43,11 +43,11 @@
 		}
 
 		public function getThreadProperty($property) {
-			if (preg_match('/(\w+)\[(\w+)\]/', $property, $matches)) 
+			if (preg_match('/(\w+)\[(\w+)\]/', $property, $matches))
 				return $this->thread->{$matches[1]}[$matches[2]];
-			elseif (preg_match('/(\w+)->(\w+)/', $property, $matches)) 
+			elseif (preg_match('/(\w+)->(\w+)/', $property, $matches))
 				return $this->thread->$matches[1]->$matches[2];
-			else 
+			else
 				return $this->thread->$property;
 		}
 
@@ -72,9 +72,9 @@
 		}
 
 		public function getThreadLastRead() {
-			if ($this->forumManager->maxRead($this->thread->forumID) > $this->getThreadProperty('lastRead')) 
+			if ($this->forumManager->maxRead($this->thread->forumID) > $this->getThreadProperty('lastRead'))
 				return $this->forumManager->maxRead($this->thread->forumID);
-			else 
+			else
 				return $this->getThreadProperty('lastRead');
 		}
 
@@ -119,19 +119,19 @@
 
 			$posts = $this->thread->getPosts($this->page);
 			$checkFor = '';
-			if (isset($_GET['view']) && $_GET['view'] == 'newPost') 
+			if (isset($_GET['view']) && $_GET['view'] == 'newPost')
 				$checkFor = 'newPost';
-			elseif (isset($_GET['p']) && intval($_GET['p'])) 
+			elseif (isset($_GET['p']) && intval($_GET['p']))
 				$checkFor = intval($_GET['p']);
-			elseif ($this->page != 1) 
+			elseif ($this->page != 1)
 				return $mongo->posts->findOne(['postID' => $this->thread->firstPostID], ['message' => true])['message'];
-			else 
+			else
 				return $posts[$this->thread->firstPostID];
 
 			foreach ($posts as $post) {
-				if ($checkFor == 'newPost' && ($post->getDatePosted() > $this->getThreadLastRead() || $this->thread->getLastPost('postID') == $post->getPostID())) 
+				if ($checkFor == 'newPost' && ($post->getDatePosted() > $this->getThreadLastRead() || $this->thread->getLastPost('postID') == $post->getPostID()))
 					return $post;
-				elseif ($post->getPostID == $checkFor) 
+				elseif ($post->getPostID == $checkFor)
 					return $post;
 			}
 		}
@@ -173,7 +173,7 @@
 		public function toggleThreadState($state) {
 			global $mongo;
 
-			if ($state != 'locked' && $state != 'sticky') 
+			if ($state != 'locked' && $state != 'sticky')
 				return false;
 			$stateVal = (bool) $this->thread->getStates($state);
 			$mongo->threads->update(['threadID' => $this->threadID], ['$set' => [$state => !$stateVal]]);
@@ -213,7 +213,7 @@
 				$mysql->query("UPDATE threads SET forumID = {$this->thread->forumID}, sticky = ".($this->thread->getStates('sticky')?1:0).", locked = ".($this->thread->getStates('locked')?1:0).", allowRolls = ".($this->thread->getAllowRolls()?1:0).", allowDraws = ".($this->thread->getAllowDraws()?1:0)." WHERE threadID = ".$this->threadID);
 				$postID = $post->savePost();
 
-				if (intval($this->thread->getLastPost('postID')) < $postID) 
+				if (intval($this->thread->getLastPost('postID')) < $postID)
 					$mysql->query("UPDATE threads SET lastPostID = {$postID} WHERE threadID = {$this->threadID}");
 			}
 
@@ -241,7 +241,7 @@
 
 		public function updateLastRead($datePosted) {
 			global $loggedIn, $mongo, $currentUser;
-			if ($loggedIn && $datePosted > $this->getThreadProperty('lastRead')) 
+			if ($loggedIn && $datePosted > $this->getThreadProperty('lastRead'))
 				$mongo->forumsReadData->update([
 					'userID' => $currentUser->userID,
 					'type' => 'thread',
@@ -262,7 +262,7 @@
 		public function deletePost($post) {
 			global $mysql, $mongo;
 
-			if ($post->getPostID() == $this->getFirstPostID()) 
+			if ($post->getPostID() == $this->getFirstPostID())
 				$this->deleteThread();
 			else {
 				$post->delete();

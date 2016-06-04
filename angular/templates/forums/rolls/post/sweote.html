@@ -1,0 +1,23 @@
+<div class="headers">
+	<div class="reason">Reason</div>
+	<div class="roll">Roll</div>
+	<div class="visibility">Visibility</div>
+</div>
+<div>
+	<div class="reason"><input type="text" ng-model="data.reason" maxlength="100" class="borderBox"></div>
+	<div class="roll">
+		<div class="dicePool">
+			<div class="add"><img src="/images/plus.png"></div>
+			<div class="selectedDice">
+				<div ng-repeat="die in data.rolls track by $index" class="diceIcon" ng-class="'sweote_' + diceTypes[die]" ng-attr-title="{{diceTypes[die].capitalizeFirstLetter()}}" ng-click="removeDie($index)"></div>
+			</div>
+			<div class="diceOptions">
+				<div class="do_pointer"><div class="do_pointer_inner"></div></div>
+				<div class="dice">
+					<div ng-repeat="(key, dieType) in diceTypes" class="diceIcon" ng-class="'sweote_' + dieType" ng-attr-title="{{diceType.capitalizeFirstLetter()}}" ng-click="addDie(key)"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="visibility"><combobox data="combobox.visibility" value="data.visibility" returnAs="value" select></combobox></div>
+</div>

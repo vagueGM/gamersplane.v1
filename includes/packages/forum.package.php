@@ -11,4 +11,5 @@
 	require_once($packageRoot.'ForumSearch.class.php');
 	require_once($packageRoot.'Post.class.php');
 	require_once($packageRoot.'ForumView.class.php');
+	require_once(FILEROOT.'/includes/Deck.class.php');
 ?>

@@ -4,27 +4,7 @@
 		echo "							<button class=\"sprite cross small\"></button>\n";
 		if ($data->type == 'basic') {
 ?>
-							<div class="newRoll basicRoll">
-								<div class="headers">
-									<div class="reason">Reason</div>
-									<div class="roll">Roll</div>
-									<div class="visibility">Visibility</div>
-									<div class="reroll">Reroll Aces</div>
-								</div>
-								<div>
-									<input type="hidden" name="rolls[<?=$count?>][type]" value="basic">
-									<div class="reason"><input type="text" name="rolls[<?=$count?>][reason]" maxlength="100"<?=isset($data->reason)?" value=\"{$data->reason}\"":null?> class="borderBox"></div>
-									<div class="roll"><input type="text" name="rolls[<?=$count?>][roll]" maxlength="50"<?=isset($data->roll)?" value=\"{$data->roll}\"":null?> class="borderBox"></div>
-									<div class="visibility"><select name="rolls[<?=$count?>][visibility]">
-										<option value="0"<?=isset($data->visibility) && $data->visibility == 0?' selected="selected"':null?>>Hide Nothing</option>
-										<option value="1"<?=isset($data->visibility) && $data->visibility == 1?' selected="selected"':null?>>Hide Roll/Result</option>
-										<option value="2"<?=isset($data->visibility) && $data->visibility == 2?' selected="selected"':null?>>Hide Dice &amp; Roll</option>
-										<option value="3"<?=isset($data->visibility) && $data->visibility == 3?' selected="selected"':null?>>Hide Everything</option>
-									</select></div>
-									<div class="reroll"><input type="checkbox" name="rolls[<?=$count?>][options][rerollAces]"<?=isset($data->options['rerollAces'])?' checked="checked"':null?>></div>
-								</div>
-							</div>
-<?
+z<?
 		} elseif ($data->type == 'sweote') {
 ?>
 							<div class="newRoll sweoteRoll">

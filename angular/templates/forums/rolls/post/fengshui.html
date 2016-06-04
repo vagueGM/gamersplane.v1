@@ -1,0 +1,12 @@
+<div class="headers">
+	<div class="reason">Reason</div>
+	<div class="av">AV</div>
+	<div class="modifier">Modifier</div>
+	<div class="visibility">Visibility</div>
+</div>
+<div>
+	<div class="reason"><input type="text" ng-model="data.reason" maxlength="100" class="borderBox"></div>
+	<div class="roll"><input type="text" ng-model="data.actionValue" maxlength="2" class="borderBox"></div>
+	<div class="modifier"><combobox data="combobox.modifierTypes" value="data.modifier" returnAs="value" select></combobox></div>
+	<div class="visibility"><combobox data="combobox.visibility" value="data.visibility" returnAs="value" select></combobox></div>
+</div>

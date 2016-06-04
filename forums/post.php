@@ -10,18 +10,18 @@
 		$postID = intval($pathOptions[1]);
 		$post = new Post($postID);
 		$threadManager = new ThreadManager($post->getThreadID());
-		if ($postID == $threadManager->getThreadProperty('firstPostID')) 
+		if ($postID == $threadManager->getThreadProperty('firstPostID'))
 			$firstPost = true;
 
-		if ($post->getAuthor('userID') != $currentUser->userID && !$threadManager->getPermissions('moderate')) 
+		if ($post->getAuthor('userID') != $currentUser->userID && !$threadManager->getPermissions('moderate'))
 			$noChat = true;
-		elseif ($threadManager->getThreadProperty('states[locked]') && !$threadManager->getPermissions('moderate')) 
+		elseif ($threadManager->getThreadProperty('states[locked]') && !$threadManager->getPermissions('moderate'))
 			$noChat = true;
-		elseif (!$threadManager->getPermissions('write')) 
+		elseif (!$threadManager->getPermissions('write'))
 			$noChat = true;
 	} elseif ($pathOptions[0] == 'newThread') {
 		$firstPost = true;
-		
+
 		$forumID = intval($pathOptions[1]);
 		$threadManager = new ThreadManager(null, $forumID);
 		$threadManager->thread->forumID = $forumID;
@@ -33,7 +33,7 @@
 			$threadManager = new ThreadManager($threadID);
 			$post = new Post();
 
-			if ($threadManager->getThreadProperty('states[locked]') || !$threadManager->getPermissions('write')) 
+			if ($threadManager->getThreadProperty('states[locked]') || !$threadManager->getPermissions('write'))
 				$noChat = true;
 			else {
 				if (isset($_SESSION['message'])) {
@@ -48,7 +48,7 @@
 						if ($gameID) {
 							$game = $mongo->games->findOne(array('gameID' => (int) $gameID, 'players' => array('$elemMatch' => array('user.userID' => $currentUser->userID, 'isGM' => true))), array('players.$'));
 							$isGM = $game['players'][0]['isGM'];
-							if (!$isGM) 
+							if (!$isGM)
 								$quoteInfo['message'] = Post::cleanNotes($quoteInfo['message']);
 						}
 						$post->message = '[quote="'.$quoteInfo['username'].'"]'.$quoteInfo['message'].'[/quote]';
@@ -56,16 +56,16 @@
 				}
 			}
 		} catch (Exception $e) { $noChat = true; }
-	} else 
+	} else
 		$noChat = true;
 
 	if ($noChat) { header('Location: /forums/'); exit; }
-	
+
 	$fillVars = $formErrors->getErrors('post');
 
-	if ($_GET['preview']) 
+	if ($_GET['preview'])
 		$fillVars = $_SESSION['previewVars'];
-	else 
+	else
 		unset($_SESSION['previewVars']);
 
 	$gameID = false;
@@ -73,14 +73,14 @@
 	if ($threadManager->getForumProperty('gameID')) {
 		$gameID = (int) $threadManager->getForumProperty('gameID');
 		$returnFields = array('system' => true, 'players' => true);
-		if ($threadManager->getPermissions('addDraws')) 
+		if ($threadManager->getPermissions('addDraws'))
 			$returnFields['decks'] = true;
 		$game = $mongo->games->findOne(array('gameID' => $gameID), $returnFields);
 		$system = $game['system'];
 		$isGM = false;
 		foreach ($game['players'] as $player) {
 			if ($player['user']['userID'] == $currentUser->userID) {
-				if ($player['isGM']) 
+				if ($player['isGM'])
 					$isGM = true;
 				break;
 			}
@@ -91,9 +91,9 @@
 		$rCharacters = $mongo->characters->find(array('game.gameID' => $gameID, 'user.userID' => $currentUser->userID), array('characterID' => true, 'name' => true));
 		$characters = array();
 		foreach ($rCharacters as $character)
-			if (strlen($character['name'])) 
+			if (strlen($character['name']))
 				$characters[$character['characterID']] = $character['name'];
-	} else 
+	} else
 		$fixedGameMenu = false;
 
 	$rollsAllowed = $threadManager->getThreadProperty('allowRolls')?true:false;
@@ -101,12 +101,12 @@
 	if ($gameID && $threadManager->getPermissions('addDraws')) {
 		$decks = $game['decks'];
 		if (!$isGM) {
-			foreach ($decks as $key => $deck) 
-				if (!in_array($currentUser->userID, $deck['permissions'])) 
+			foreach ($decks as $key => $deck)
+				if (!in_array($currentUser->userID, $deck['permissions']))
 					unset($decks[$key]);
 			$decks = array_values($decks);
 		}
-		if (sizeof($decks)) 
+		if (sizeof($decks))
 			$drawsAllowed = true;
 	}
 
@@ -127,173 +127,94 @@
 		</ul></div>
 <?
 	}
-	$threadManager->forumManager->displayBreadcrumbs();
 ?>
-		<h1 class="headerbar"><?=($post->postID || $pathOptions[0] == 'post')?($editPost?'Edit post':'Post a reply').' - '.printReady($threadManager->getThreadProperty('title')):'New Thread'?></h1>
-		
+		<div class="clearfix" hb-margined>
+			<breadcrumbs forums="thread.forumHeritage"></breadcrumbs>
+			<a ng-if="pageType != 'newThread'" id="returnToThread" href="/forums/thread/{{thread.threadID}}/">Return to thread</a>
+		</div>
+		<h1 class="headerbar" skew-element>{{header}}</h1>
+
 <?	if ($_GET['preview'] && strlen($fillVars['message']) > 0) { ?>
 		<h2>Preview:</h2>
 		<div id="preview">
 			<?=BBCode2Html(printReady($fillVars['message']))."\n"?>
 		</div>
 		<hr>
-		
+
 <? } ?>
-		<form method="post" action="/forums/process/post/">
+		<form ng-submit="save()">
 <?
-	if ($pathOptions[0] == 'newThread') echo "\t\t\t".'<input type="hidden" name="new" value="'.$forumID.'">'."\n";
-	elseif ($pathOptions[0] == 'editPost') echo "\t\t\t".'<input type="hidden" name="edit" value="'.$postID.'">'."\n";
-	elseif ($pathOptions[0] == 'post') echo "\t\t\t".'<input type="hidden" name="threadID" value="'.$threadID.'">'."\n";
-	
-	if ($fillVars) 
+	if ($fillVars)
 		$title = printReady($fillVars['title']);
-	elseif (!strlen($post->getTitle()) && $threadManager->getThreadID()) 
+	elseif (!strlen($post->getTitle()) && $threadManager->getThreadID())
 		$title = 'Re: '.$threadManager->getThreadProperty('title');
-	else 
+	else
 		$title = printReady($post->title, array('stripslashes'));
 ?>
 			<div id="basicPostInfo" class="hbMargined">
 				<div class="table">
 					<div>
 						<label for="title">Title:</label>
-						<div><input id="title" type="text" name="title" maxlength="50" tabindex="<?=tabOrder();?>" value="<?=htmlentities($title)?>" class="titleInput"></div>
+						<div><input id="title" type="text" ng-model="post.title" maxlength="50"></div>
 					</div>
-<?	
-	if ($gameID && sizeof($characters)) {
-		$currentChar = $post->postAs;
-		if ($fillVars) 
-			$currentChar = $fillVars['postAs'];
-?>
-					<div class="tr">
+					<div ng-if="thread.game" class="tr">
 						<label>Post As:</label>
-						<div><select name="postAs">
-							<option value="p"<?=$currentChar == null?' selected="selected"':''?>>Player</option>
-<?		foreach ($characters as $characterID => $name) { ?>
-							<option value="<?=$characterID?>"<?=$currentChar == $characterID?' selected="selected"':''?>><?=$name?></option>
-<?		} ?>
-						</select></div>
+						<div><combobox data="combobox.characters" value="post.postAs" returnAs="value" select></combobox></div>
 					</div>
-<?	} ?>
 				</div>
-				<textarea id="messageTextArea" name="message" tabindex="<?=tabOrder();?>"><?=$fillVars?$fillVars['message']:$post->message?></textarea>
-			</div>
-			
-<?	if ($firstPost || $rollsAllowed || $drawsAllowed) { ?>
-			<div id="optionControls" class="clearfix"><div class="trapezoid sectionControls">
-				<div>
-<?		if ($firstPost) { ?>
-					<a href="" class="section_options<?=$firstPost?' current':''?>">Options</a>
-					<a href="" class="section_poll">Poll</a>
-<?		} ?>
-<?		if ($rollsAllowed || $drawsAllowed) { ?>
-					<a href="" class="section_rolls_decks<?=!$firstPost?' current':''?>">Rolls and Decks</a>
-<?		} ?>
-				</div>
-			</div></div>
-<?	} ?>
-<?	if (($firstPost) || $rollsAllowed || $drawsAllowed) { ?>
-			<h2 class="headerbar hbDark">
-<?		if ($firstPost) { ?>
-				<span class="section_options">Thread Options</span>
-				<span class="section_poll hideDiv">Poll</span>
-<?		} ?>
-				<span class="section_rolls_decks<?=$firstPost?' hideDiv':''?>">Rolls and Decks</span>
-			</h2>
-<?	} ?>
-			
-<?	if ($firstPost) { ?>
-			<div id="threadOptions" class="section_options hbdMargined">
-<?
-		if ($threadManager->getPermissions('moderate')) {
-			$sticky = $threadManager->getThreadProperty('sticky');
-			if ($fillVars) 
-				$sticky = $fillVars['sticky'];
-?>
-				<p><input type="checkbox" name="sticky"<?=$sticky?' checked="checked"':''?>> Sticky thread</p>
-<?
-		}
-		if ($threadManager->getPermissions('moderate')) {
-			$locked = $threadManager->getThreadProperty('states[locked]');
-			if ($fillVars) 
-				$locked = $fillVars['locked'];
-?>
-				<p><input type="checkbox" name="locked"<?=$locked?' checked="checked"':''?>> Lock thread</p>
-<?
-		}
-		if ($threadManager->getPermissions('addRolls')) {
-			$addRolls = $rollsAllowed || ($pathOptions[0] == 'newThread' && $gameID);
-			if ($fillVars) 
-				$addRolls = $fillVars['allowRolls'];
-?>
-				<p><input type="checkbox" name="allowRolls"<?=$addRolls?' checked="checked"':''?>> Allow adding rolls to posts (if this box is unchecked, any rolls added to this thread will be ignored)</p>
-<?
-		}
-		if ($threadManager->getPermissions('addDraws')) {
-			$addDraws = $drawsAllowed || ($pathOptions[0] == 'newThread' && $gameID);
-			if ($fillVars) 
-				$addDraws = $fillVars['allowDraws'];
-?>
-				<p><input type="checkbox" name="allowDraws"<?=$addDraws?' checked="checked"':''?>> Allow adding deck draws to posts (if this box is unchecked, any draws added to this thread will be ignored)</p>
-<?		} ?>
+				<textarea id="messageTextArea" ng-model="post.message" mark-it-up></textarea>
 			</div>
 
-			<div id="poll" class="section_poll hbdMargined hideDiv">
-<?		if ($pathOptions[0] == 'editPost') { ?>
-				<div class="clearfix">
-					<label for="allowRevoting"><b>Delete Poll:</b></label>
-					<div><input id="deletePoll" type="checkbox" name="deletePoll"> If checked, your poll will be deleted and cannot be recovered.</div>
-				</div>
-<?		} ?>
-				<div class="tr clearfix">
-					<label for="pollQuestion" class="textLabel"><b>Poll Question:</b></label>
-					<div><input id="pollQuestion" type="text" name="poll" value="<?=$fillVars?$fillVars['poll']:$threadManager->getPollProperty('question')?>" class="borderBox"></div>
-				</div>
-				<div class="tr clearfix">
-					<label for="pollOption" class="textLabel">
-						<b>Poll Options:</b>
-						<p>Place each option on a new line. You may enter up to <b>25</b> options.</p>
-					</label>
-					<div><textarea id="pollOptions" name="pollOptions"><?
-			if ($fillVars) echo $fillVars['pollOptions'];
-			else {
-				$options = array();
-				foreach ($threadManager->getPollProperty('options') as $option) 
-					$options[] = $option->option;
-				echo implode("\n", $options);
-			}
-?></textarea></div>
-				</div>
-				<div class="tr clearfix">
-					<label for="optionsPerUser" class="textLabel"><b>Options per user:</b></label>
-					<div><input id="optionsPerUser" type="text" name="optionsPerUser" value="<?=$fillVars?$fillVars['optionsPerUser']:$threadManager->getPollProperty('optionsPerUser')?>" class="borderBox"></div>
-				</div>
-				<div class="tr clearfix">
-					<label for="allowRevoting"><b>Allow Revoting:</b></label>
-<?
-		$allowRevoting = $threadManager->getPollProperty('allowRevoting');
-		if ($fillVars) $allowRevoting = $fillVars['allowRevoting'];
-?>
-					<div><input id="allowRevoting" type="checkbox" name="allowRevoting" <?=$allowRevoting?' checked="checked"':''?>> If checked, people will be allowed to change their votes.</div>
-				</div>
-			</div>
-<?
-	}
-	if ($rollsAllowed || $drawsAllowed) {
-?>
-			<div id="rolls_decks" class="section_rolls_decks hbdMargined<?=$firstPost?' hideDiv':''?>">
-<?		if ($rollsAllowed) { ?>
-				<div id="rolls">
-<?			if ($drawsAllowed) { ?>
-					<h3 id="rollsHeader">Rolls</h3>
-<?			} ?>
-					<div id="rollExplination">
-						For "Basic" type rolls, Enter the text roll in the following format:<br>
-						(number of dice)d(dice type)+/-(modifier), i.e. 2d6+4, 1d10-2<br>
-						The roll will automatically be added to your post when you submit it.
+			<div ng-if="firstPost || thread.options.allowRolls || thread.options.allowDraws">
+				<div id="optionControls" class="clearfix"><div class="trapezoid sectionControls" trapezoidify="down">
+					<div>
+						<a ng-if="firstPost" href="" ng-click="setOptionsState('options')" class="section_options" ng-class="{ current: options.state == 'options' }">{{optionsStates['options']}}</a>
+						<a ng-if="firstPost" href="" ng-click="setOptionsState('poll')" class="section_poll" ng-class="{ current: options.state == 'poll' }">{{optionsStates['poll']}}</a>
+						<a ng-if="(firstPost && (thread.permissions.addRolls || thread.permissions.addDraws)) || thread.options.allowRolls || (thread.options.allowDraws && decks.length)" href="" ng-click="setOptionsState('rolls_decks')" class="section_rolls_decks" ng-class="{ current: options.state == 'rolls_decks' }">{{optionsStates['rolls_decks']}}</a>
 					</div>
-<?			if (sizeof($post->rolls)) { ?>
-					<div id="postedRolls">
-						<h3>Posted Rolls</h3>
+				</div></div>
+				<h2 class="headerbar hbDark" skew-element>{{options.title}}</h2>
+				<div ng-if="options.state == 'options'" id="threadOptions" class="section_options" hb-margined="dark">
+					<p ng-if="thread.permissions.moderate"><pretty-checkbox checkbox="post.options.sticky"></pretty-checkbox> Sticky thread</p>
+					<p ng-if="thread.permissions.moderate"><pretty-checkbox checkbox="post.options.locked"></pretty-checkbox> Lock thread</p>
+					<p ng-if="thread.permissions.addRolls"><pretty-checkbox checkbox="thread.options.allowRolls"></pretty-checkbox> Allow adding rolls to posts (if this box is unchecked, any rolls added to this thread will be ignored)</p>
+					<p ng-if="thread.permissions.addDraws"><pretty-checkbox checkbox="thread.options.allowDraws"></pretty-checkbox> Allow adding deck draws to posts (if this box is unchecked, any draws added to this thread will be ignored)</p>
+				</div>
+				<div ng-if="options.state == 'poll'" id="poll" class="section_poll" hb-margined="dark">
+					<div ng-if="state == 'edit'" class="clearfix">
+						<label for="allowRevoting"><b>Delete Poll:</b></label>
+						<div><pretty-checkbox eleid="deletePoll" checkbox="thread.poll.delete"></pretty-checkbox> If checked, your poll will be deleted and cannot be recovered.</div>
+					</div>
+					<div class="tr clearfix">
+						<label for="pollQuestion" class="textLabel"><b>Poll Question:</b></label>
+						<div><input id="pollQuestion" type="text" ng-model="thread.poll.question" class="borderBox"></div>
+					</div>
+					<div class="tr clearfix">
+						<label for="pollOption" class="textLabel">
+							<b>Poll Options:</b>
+							<p>Place each option on a new line. You may enter up to <b>25</b> options.</p>
+						</label>
+						<div><textarea id="pollOptions" ng-model="thread.poll.options"></textarea></div>
+					</div>
+					<div class="tr clearfix">
+						<label for="optionsPerUser" class="textLabel"><b>Options per user:</b></label>
+						<div><input id="optionsPerUser" type="text" ng-model="thread.poll.optionsPerUser" class="borderBox"></div>
+					</div>
+					<div class="tr clearfix">
+						<label for="allowRevoting"><b>Allow Revoting:</b></label>
+						<div><pretty-checkbox eleid="allowRevoting" checkbox="thread.poll.allowRevoting"></pretty-checkbox> If checked, people will be allowed to change their votes.</div>
+					</div>
+				</div>
+				<div ng-if="options.state == 'rolls_decks'" id="rolls_decks" class="section_rolls_decks" hb-margined="dark">
+					<div ng-if="thread.options.allowRolls" id="rolls">
+						<h3 ng-if="thread.options.allowDraws" id="rollsHeader">Rolls</h3>
+						<div id="rollExplination">
+							For "Basic" type rolls, Enter the text roll in the following format:<br>
+							(number of dice)d(dice type)+/-(modifier), i.e. 2d6+4, 1d10-2<br>
+							The roll will automatically be added to your post when you submit it.
+						</div>
+						<div ng-if="post.rolls.prev" id="postedRolls">
+							<h3>Posted Rolls</h3>
 <?
 				$visText = array(1 => '[Hidden Roll/Result]', '[Hidden Dice &amp; Roll]', '[Everything Hidden]');
 				$hidden = false;
@@ -303,90 +224,54 @@
 					$showAll = $isGM || $currentUser->userID == $post->author->userID?true:false;
 					$hidden = false;
 ?>
-						<div class="rollInfo">
-							<select name="nVisibility[<?=$roll->getRollID()?>]" tabindex="<?=tabOrder();?>">
-								<option value="0"<?=$roll->getVisibility() == 0?' selected="selected"':''?>>Hide Nothing</option>
-								<option value="1"<?=$roll->getVisibility() == 1?' selected="selected"':''?>>Hide Roll/Result</option>
-								<option value="2"<?=$roll->getVisibility() == 2?' selected="selected"':''?>>Hide Dice &amp; Roll</option>
-								<option value="3"<?=$roll->getVisibility() == 3?' selected="selected"':''?>>Hide Everything</option>
-							</select>
-							<div>
+							<div class="rollInfo">
+								<select name="nVisibility[<?=$roll->getRollID()?>]">
+									<option value="0"<?=$roll->getVisibility() == 0?' selected="selected"':''?>>Hide Nothing</option>
+									<option value="1"<?=$roll->getVisibility() == 1?' selected="selected"':''?>>Hide Roll/Result</option>
+									<option value="2"<?=$roll->getVisibility() == 2?' selected="selected"':''?>>Hide Dice &amp; Roll</option>
+									<option value="3"<?=$roll->getVisibility() == 3?' selected="selected"':''?>>Hide Everything</option>
+								</select>
+								<div>
 <?
 					$roll->showHTML($showAll);
 ?>
+								</div>
+								<input type="hidden" name="oVisibility[<?=$roll->getRollID()?>]" value="<?=$roll->getVisibility()?>">
 							</div>
-							<input type="hidden" name="oVisibility[<?=$roll->getRollID()?>]" value="<?=$roll->getVisibility()?>">
-						</div>
 <?				} ?>
+						</div>
+						<div id="addRoll" ng-click="addRoll">
+							<span>Add new roll: </span>
+							<combobox data="combobox.diceTypes" value="combobox.values.addDice" returnAs="value" select></combobox>
+							<button ng-click="addRoll()" class="fancyButton" skew-element>Add</button>
+						</div>
+						<div id="newRolls">
+							<new-roll ng-repeat="(key, roll) in post.rolls" data="roll"></new-roll>
+						</div>
 					</div>
-<?			} ?>
-					<div id="addRoll">
-						<span>Add new roll: </span>
-						<select>
-							<option value="basic">Basic</option>
-							<option value="sweote">SWEOTE</option>
-							<option value="fate">Fate</option>
-							<option value="fengshui">Feng Shui</option>
-						</select>
-						<button type="submit" class="fancyButton">Add</button>
-					</div>
-					<div id="newRolls">
-<?
-			if (isset($fillVars['rolls'])) {
-				foreach ($fillVars['rolls'] as $count => $roll) {
-					rollTR($count, (object) $roll);
-				}
-			}
-?>
+					<div ng-if="thread.options.allowDraws && decks.length" id="draws">
+						<h3 ng-if="thread.options.allowRolls" id="decksHeader">Decks</h3>
+						<p>Please remember, any cards you draw will be only visible to you until you reveal them. Reveal them by clicking them. An eye icon indicates they're visible, while an eye with a red slash through them indiates a hidden card.</p>
+						<div id="decksTable">
+							<div ng-repeat="deck in decks" ng-class="{ 'titleBuffer': $first }">
+								<p><b ng-bind-html="deck.label | trustHTML"></b> has {{deck.size - deck.position + 1}} cards left.</p>
+								<div ng-if="post.draws[deck.deckID]">
+									<p>Cards Drawn: {{post.draws[deck.deckID].reason}}</p>
+									<card ng-repeat="card in post.draws[deck.deckID].cards" card-num="{{card.card}}" deck-type="{{deck.type}}" size="mini"></card>
+								</div>
+								<div ng-if="!post.draws[deck.deckID]">
+									<span class="reason"><input type="text" ng-model="post.draws[deck.deckID].reason" maxlength="100"></span>
+									<span class="draw">Draw <input type="text" ng-model="post.draws[deck.deckID].draw" maxlength="2"> cards</span>
+								</div>
+							</div>
+						</div>
 					</div>
 				</div>
-<?		} ?>
-<?		if ($drawsAllowed) { ?>
-				<div id="draws">
-<?			if ($rollsAllowed) { ?>
-					<h3 id="decksHeader">Decks</h3>
-<?			} ?>
-					<p>Please remember, any cards you draw will be only visible to you until you reveal them. Reveal them by clicking them. An eye icon indicates they're visible, while an eye with a red slash through them indiates a hidden card.</p>
-					<table id="decksTable">
-<?
-			$firstDeck = true;
-			foreach ($decks as $deck) {
-				if ($draws[$deck['deckID']]) {
-					$draw = $draws[$deck['deckID']];
-?>
-						<tr><td colspan="2">
-							<b><?=$deck['label']?></b> has <?=(sizeof($deck['deck']) - $deck['position'] + 1)?> cards left.
-							<p>Cards Drawn: <?=$draw['reason']?></p>
-<?
-					$cardsDrawn = explode('~', $draw['cardsDrawn']);
-					foreach ($cardsDrawn as $cardDrawn) echo "\t\t\t\t\t\t".getCardImg($cardDrawn, $deck['type'], 'mini')."\n";
-?>
-						</td></tr>
-<?				} else { ?>
-						<tr class="deckTitle<?=$firstDeck?'':' titleBuffer'?>"><td class="label"><b><?=$deck['label']?></b> has <?=sizeof($deck['deck']) - $deck['position'] + 1?> cards left</td></tr>
-						<tr>
-							<td class="reason"><input type="text" name="decks[<?=$deck['deckID']?>][reason]" maxlength="100" value="<?=$fillVars?$fillVars[$deck['deckID']]['reason']:''?>" tabindex="<?=tabOrder();?>"></td>
-							<td class="draw">Draw <input type="text" name="decks[<?=$deck['deckID']?>][draw]" maxlength="2" value="<?=$fillVars?$fillVars[$deck['deckID']]['draw'].'"':''?>" tabindex="<?=tabOrder();?>"> cards</td>
-						</tr>
-<?
-				}
-				if ($firstDeck) $firstDeck = false;
-			}
-?>
-					</table>
-				</div>
-<?
-		}
-?>
 			</div>
-<?
-	}
-?>
-			<input type="hidden" name="postURL" value="<?=$_SESSION['currentURL']?>">
-			
+
 			<div id="submitDiv" class="alignCenter">
-				<button type="submit" name="post" tabindex="<?=tabOrder();?>" class="fancyButton"><?=$editPost?'Save':'Post'?></button>
-				<button type="submit" name="preview" tabindex="<?=tabOrder();?>" class="fancyButton">Preview</button>
+				<button type="submit" class="fancyButton" skew-element>{{pageType != 'Edit'?'Post':'Edit'}}</button>
+				<button type="submit" ng-click="preview()" class="fancyButton" skew-element>Preview</button>
             </div>
 		</form>
 <? require_once(FILEROOT.'/footer.php'); ?>

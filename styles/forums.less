@@ -51,8 +51,8 @@
 
 /* -------------------------------------------- */
 
-#page_forum, #page_forum_thread {
-	#breadcrumbs {
+#page_forum, #page_forum_thread, #page_forum_post {
+	.breadcrumbs {
 		margin-bottom: .75em;
 		color: #666;
 		font-size: 1.1em;
@@ -111,7 +111,7 @@
 
 	.headerTR {
 		padding: 0;
-		
+
 		.td {
 			padding-top: 8px;
 			padding-bottom: 8px;
@@ -659,7 +659,7 @@
 			display: inline-block;
 			vertical-align: middle;
 		}
-		
+
 		label {
 			margin-right: 10px;
 		}
@@ -683,6 +683,15 @@
 		margin: 1.25em auto;
 		background-color: #444;
 		color: #444;
+	}
+
+	.breadcrumbs {
+		float: left;
+		margin-bottom: 0;
+	}
+
+	#returnToThread {
+		float: right;
 	}
 
 	#basicPostInfo {
@@ -837,7 +846,7 @@
 	}
 
 	.newRoll {
-		& > div > * {
+		ng-include > div > * {
 			display: inline-block;
 			vertical-align: middle;
 		}
@@ -862,7 +871,7 @@
 			text-align: center;
 		}
 
-		.sweoteRoll {
+		&.sweoteRoll {
 			.dicePool {
 				position: relative;
 				padding-right: 30px;
@@ -920,7 +929,7 @@
 				position: absolute;
 				top: -35px;
 				right: 0;
-				width: 140px;
+				width: 120px;
 				height: 23px;
 				padding: 4px 0;
 				background: #EEE;
@@ -1008,7 +1017,7 @@
 			}
 		}
 
-		.fengShuiRoll {
+		.fengshuiRoll {
 			.av {
 				width: 50px;
 				text-align: center;
@@ -1050,7 +1059,11 @@
 	}
 
 	#decksTable {
-		.titleBuffer td {
+		span {
+			display: inline-block;
+		}
+
+		.titleBuffer {
 			padding-top: 1em;
 		}
 

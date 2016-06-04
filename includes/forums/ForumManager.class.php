@@ -19,7 +19,7 @@
 					$showPubGames = 1;
 					$currentUser->updateUsermeta('showPubGames', '1', true);
 				}
-			} else 
+			} else
 				$showPubGames = 1;
 
 			$this->currentForum = intval($forumID);
@@ -28,51 +28,51 @@
 			$currentForum = $mongo->forums->findOne(['forumID' => $forumID], ['heritage' => true]);
 			$forumConds = [];
 			$forumConds[] = ['forumID' => ['$in' => $currentForum['heritage']]];
-			if ($forumID == 0) 
+			if ($forumID == 0)
 				$forumConds[0]['forumID'] = 0;
-			if (bindec($options&$this::NO_CHILDREN) == 0) 
+			if (bindec($options&$this::NO_CHILDREN) == 0)
 				$forumConds[] = ['heritage' => $forumID];
 			$forumConds = sizeof($forumConds) > 1?['$or' => $forumConds]:$forumConds[0];
-			if ($forumID == 0 || $forumID == 2) 
+			if ($forumID == 0 || $forumID == 2)
 				$forumConds['gameID'] = null;
 			$forumsR = $mongo->forums->find($forumConds)->sort(['depth' => 1]);
-			foreach ($forumsR as $forum) 
+			foreach ($forumsR as $forum)
 				$this->forumsData[$forum['forumID']] = $forum;
 			if (($this->currentForum == 0 || $this->currentForum == 2) && bindec($options&$this::NO_CHILDREN) == 0) {
 				$forumConds = ['$or' => []];
-				if ($showPubGames) 
+				if ($showPubGames)
 					$forumConds['$or'][] = ['public' => true];
-				if ($loggedIn) 
+				if ($loggedIn)
 					$forumConds['$or'][] = ['players' => [
 						'$elemMatch' => [
 							'user.userID' => $currentUser->userID,
 							'approved' => true
 						]
 					], 'retired' => null];
-				if (sizeof($forumConds['$or']) == 1) 
+				if (sizeof($forumConds['$or']) == 1)
 					$forumConds = $forumConds['$or'][0];
 				$gameForums = $mongo->games->find($forumConds, ['forumID' => true]);
 				$gameForumIDs = array();
-				foreach ($gameForums as $game) 
+				foreach ($gameForums as $game)
 					$gameForumIDs[] = $game['forumID'];
 				$gameForums = $mongo->forums->find(['forumID' => ['$in' => $gameForumIDs]]);
-				foreach ($gameForums as $forum) 
+				foreach ($gameForums as $forum)
 					$this->forumsData[$forum['forumID']] = $forum;
 			}
 			$permissions = ForumPermissions::getPermissions($currentUser->userID, array_keys($this->forumsData), null, $this->forumsData);
 			foreach ($permissions as $pForumID => $permission)
 				$this->forumsData[$pForumID]['permissions'] = $permission;
-			foreach ($this->forumsData as $forumID => $forumData) 
+			foreach ($this->forumsData as $forumID => $forumData)
 				$this->spawnForum($forumID);
-			if ($options&$this::ADMIN_FORUMS) 
+			if ($options&$this::ADMIN_FORUMS)
 				$this->pruneByPermissions(0, 'admin');
-			else 
+			else
 				$this->pruneByPermissions();
-			foreach (array_keys($this->forumsData) as $forumID) {
+			foreach ($this->forums as $forumID => $forum) {
 				$this->forums[$forumID]->sortChildren();
-				if ($this->forums[$forumID]->latestPost['threadID'] != null) 
-					foreach ($this->forums[$forumID]->getHeritage() as $hForumID) 
-						if ($this->forums[$hForumID]->latestPost['datePosted'] == null || $this->forums[$forumID]->latestPost['datePosted'] > $this->forums[$hForumID]->latestPost['datePosted']) 
+				if ($this->forums[$forumID]->latestPost['threadID'] != null)
+					foreach ($this->forums[$forumID]->getHeritage() as $hForumID)
+						if ($this->forums[$hForumID]->latestPost['datePosted'] == null || $this->forums[$forumID]->latestPost['datePosted'] > $this->forums[$hForumID]->latestPost['datePosted'])
 							$this->forums[$hForumID]->latestPost = $this->forums[$forumID]->latestPost;
 			}
 
@@ -81,18 +81,17 @@
 				'forumID' => ['$in' => array_keys($this->forums)],
 				'type' => 'forum'
 			], ['forumID' => true, 'markedRead' => true]);
-			foreach ($rForumReadData as $readData) 
+			foreach ($rForumReadData as $readData)
 				$this->forums[$readData['forumID']]->markedRead = $readData['markedRead']->sec;
 			$getThreadRD = [];
 			foreach ($this->forums as $forum) {
-				foreach ($forum->getHeritage() as $hForumID) 
-					if ($this->forums[$hForumID]->getMarkedRead() > $forum->getMarkedRead()) 
+				foreach ($forum->getHeritage() as $hForumID)
+					if ($this->forums[$hForumID]->getMarkedRead() > $forum->getMarkedRead())
 						$this->forums[$forum->getForumID()]->markedRead = $this->forums[$hForumID]->getMarkedRead();
 				if ($forum->latestPost['datePosted'] > $this->forums[$forum->getForumID()]->getMarkedRead()) {
 					$getThreadRD[] = $forum->getForumID();
 				}
 			}
-			// exit;
 			if (!($options&$this::NO_NEWPOSTS) && sizeof($getThreadRD)) {
 				$rThreadReadData = $mongo->forumsReadData->find([
 					'userID' => $currentUser->userID,
@@ -106,18 +105,18 @@
 					$threadReadData[$thread['threadID']] = $thread;
 					$getThreadData[] = $thread['forumID'];
 				}
-				foreach (array_diff($getThreadRD, $getThreadData) as $forumID) 
+				foreach (array_diff($getThreadRD, $getThreadData) as $forumID)
 					$this->forums[$forumID]->setNewPosts(true);
 				$rThreadData = $mongo->threads->find([
 					'forumID' => ['$in' => $getThreadData],
 					'lastPost.datePosted' => ['$gt' => new MongoDate($this->forums[$this->currentForum]->getMarkedRead())]
 				], ['threadID' => true, 'forumID' => true, 'lastPost' => true]);
 				foreach ($rThreadData as $thread) {
-					if ($this->forums[$thread['forumID']]->getNewPosts()) 
+					if ($this->forums[$thread['forumID']]->getNewPosts())
 						continue;
 					if (!isset($threadReadData[$thread['threadID']]) || $threadReadData[$thread['threadID']]['lastRead']->sec < $thread['lastPost']['datePosted']->sec) {
 						$this->forums[$thread['forumID']]->setNewPosts(true);
-						foreach ($this->forums[$thread['forumID']]->getHeritage() as $hForumID) 
+						foreach ($this->forums[$thread['forumID']]->getHeritage() as $hForumID)
 							$this->forums[$hForumID]->setNewPosts(true);
 					}
 				}
@@ -125,36 +124,36 @@
 		}
 
 		protected function spawnForum($forumID) {
-			if (isset($this->forums[$forumID])) 
+			if (isset($this->forums[$forumID]))
 				return null;
 
 			$this->forums[$forumID] = new Forum($forumID, $this->forumsData[$forumID]);
-			if ($forumID == 0) 
+			if ($forumID == 0)
 				return null;
 			$parentID = $this->forums[$forumID]->parentID;
-			if (!isset($this->forums[$parentID])) 
+			if (!isset($this->forums[$parentID]))
 				$this->spawnForum($parentID);
 			$this->forums[$parentID]->setChild($forumID, $this->forums[$forumID]->order);
 		}
 
 		protected function pruneByPermissions($forumID = 0, $permission = 'read') {
-			foreach ($this->forums[$forumID]->children as $childID) 
+			foreach ($this->forums[$forumID]->children as $childID)
 				$this->pruneByPermissions($childID, $permission);
 			if (sizeof($this->forums[$forumID]->children) == 0 && $this->forums[$forumID]->permissions[$permission] == false) {
 				$parentID = $this->forums[$forumID]->parentID;
 				unset($this->forums[$forumID]);
-				if (isset($this->forums[$parentID])) 
+				if (isset($this->forums[$parentID]))
 					$this->forums[$parentID]->unsetChild($forumID);
 			}
 		}
 
 		public function getAccessableForums($validForums = null) {
-			if ($validForums == null) 
+			if ($validForums == null)
 				$validForums = array();
 
 			$forums = array();
 			foreach ($this->forums as $forum) {
-				if ($forum->getPermissions('read') && ((sizeof($validForums) && in_array($forum->getForumID(), $validForums)) || sizeof($validForums) == 0)) 
+				if ($forum->getPermissions('read') && ((sizeof($validForums) && in_array($forum->getForumID(), $validForums)) || sizeof($validForums) == 0))
 					$forums[] = $forum->getForumID();
 			}
 			return $forums;
@@ -163,20 +162,20 @@
 		public function getForumsVars($forumID = null) {
 			if ($forumID == null) {
 				$forums = array();
-				foreach ($this->forums as $forumID => $forum) 
+				foreach ($this->forums as $forumID => $forum)
 					$forums[$forumID] = $forum->getForumVars();
 				return $forums;
-			} else 
+			} else
 				return get_object_vars($this->forums[$forumID]);
 		}
 
 		public function getAllChildren($forumID = 0, $read = false) {
 			$forums = array($forumID);
-			if (!isset($this->forums[$forumID])) 
+			if (!isset($this->forums[$forumID]))
 				return array();
 			$forum = $this->forums[$forumID];
 			foreach ($forum->getChildren() as $childID) {
-				if (!in_array($childID, $forums) && (!$read || ($read && $this->forums[$childID]->getPermissions('read')))) 
+				if (!in_array($childID, $forums) && (!$read || ($read && $this->forums[$childID]->getPermissions('read'))))
 					$forums[] = $childID;
 				$children = $this->getAllChildren($childID);
 				$forums = array_merge($forums, $children);
@@ -185,11 +184,11 @@
 		}
 
 		public function getForumProperty($forumID, $property) {
-			if (preg_match('/(\w+)\[(\w+)\]/', $property, $matches)) 
+			if (preg_match('/(\w+)\[(\w+)\]/', $property, $matches))
 				return $this->forums[$forumID]->{$matches[1]}[$matches[2]];
-			elseif (preg_match('/(\w+)->(\w+)/', $property, $matches)) 
+			elseif (preg_match('/(\w+)->(\w+)/', $property, $matches))
 				return $this->forums[$forumID]->$matches[1]->$matches[2];
-			else 
+			else
 				return $this->forums[$forumID]->$property;
 		}
 
@@ -204,8 +203,8 @@
 			$forum = $this->forums[$forumID];
 
 			$total = 0;
-			if (sizeof($forum->children)) 
-				foreach ($forum->children as $cForumID) 
+			if (sizeof($forum->children))
+				foreach ($forum->children as $cForumID)
 					$total += $this->getTotalThreadCount($cForumID);
 			if ($forum->permissions['read']) $total += $forum->threadCount;
 			return $total;
@@ -215,10 +214,10 @@
 			$forum = $this->forums[$forumID];
 
 			$total = 0;
-			if (sizeof($forum->children)) 
-				foreach ($forum->children as $cForumID) 
+			if (sizeof($forum->children))
+				foreach ($forum->children as $cForumID)
 					$total += $this->getTotalPostCount($cForumID);
-			if ($forum->permissions['read']) 
+			if ($forum->permissions['read'])
 				$total += $forum->postCount;
 			return $total;
 		}
@@ -235,7 +234,7 @@
 		public function maxRead($forumID) {
 			$maxRead = 0;
 			foreach ($this->forums[$forumID]->getHeritage() as $heritageID) {
-				if ($this->forums[$heritageID]->getMarkedRead() > $maxRead) 
+				if ($this->forums[$heritageID]->getMarkedRead() > $maxRead)
 					$maxRead = $this->forums[$heritageID]->getMarkedRead();
 			}
 
@@ -263,8 +262,8 @@
 			if (sizeof($forum->children)) {
 				foreach ($forum->children as $cForumID) {
 					$cLastPost = $this->getLastPost($cForumID);
-					if ($cLastPost && $cLastPost->postID > $lastPost->postID) 
-						$lastPost = $cLastPost; 
+					if ($cLastPost && $cLastPost->postID > $lastPost->postID)
+						$lastPost = $cLastPost;
 				}
 			}
 			if ($forum->permissions['read'] && $forum->lastPost->postID > $lastPost->postID) return $forum->lastPost;
@@ -275,7 +274,7 @@
 		public function updateLatestPost($updateObj = null) {
 			global $mongo;
 
-			if ($updateObj) 
+			if ($updateObj)
 				$mongo->forums->update(['forumID' => $this->currentForum], ['$set' => ['latestPost' => $updateObj]]);
 			else {
 				$latestPost = $mongo->threads->find(['forumID' => $this->currentForum], ['threadID', 'lastPost'])->sort(['lastPost.datePosted' => -1])->limit(1);
@@ -286,7 +285,7 @@
 
 		public function getHeritage() {
 			$heritage = [];
-			foreach ($this->forums[$this->currentForum]->heritage as $hForumID) 
+			foreach ($this->forums[$this->currentForum]->heritage as $hForumID)
 				$heritage[] = ['forumID' => $hForumID, 'title' => $this->forums[$hForumID]->title];
 			return $heritage;
 		}
@@ -309,7 +308,7 @@
 		}
 
 		public function getThreads($page = 1) {
-			return $this->forums[$this->currentForum]->getThreads($page);
+			return isset($this->forums[$this->currentForum])?$this->forums[$this->currentForum]->getThreads($page):[];
 		}
 
 		public function displayThreads() {
@@ -340,7 +339,7 @@
 <?				} ?>
 						<div class="paginateDiv">
 <?
-				if ($thread->postCount > PAGINATE_PER_PAGE) { 
+				if ($thread->postCount > PAGINATE_PER_PAGE) {
 					$url = '/forums/thread/'.$thread->threadID.'/';
 					$numPages = ceil($thread->postCount / PAGINATE_PER_PAGE);
 					if ($numPages <= 4) { for ($count = 1; $count <= $numPages; $count++) {
@@ -375,7 +374,7 @@
 		}
 
 		public function getAdminForums($forumID = 0, $currentForum = 0) {
-			if (!isset($this->forums[$forumID])) 
+			if (!isset($this->forums[$forumID]))
 				return null;
 
 			$forum = $this->forums[$forumID];
@@ -385,13 +384,13 @@
 				'admin' => true,
 				'children' => array()
 			);
-			if (!$forum->getPermissions('admin')) 
+			if (!$forum->getPermissions('admin'))
 				$details['admin'] = false;
 			if (sizeof($forum->getChildren())) {
-				foreach ($forum->getChildren() as $childID) 
-					if ($child = $this->getAdminForums($childID, $currentForum)) 
+				foreach ($forum->getChildren() as $childID)
+					if ($child = $this->getAdminForums($childID, $currentForum))
 						$details['children'][] = $child;
-			} elseif (!$details['admin']) 
+			} elseif (!$details['admin'])
 				return null;
 
 			return $details;

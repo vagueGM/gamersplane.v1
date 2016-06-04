@@ -4,35 +4,36 @@
 			global $pathOptions;
 
 			addPackage('forum');
+			require_once(FILEROOT.'/includes/Deck.class.php');
 
 			if ($pathOptions[0] == 'acp') {
 				require(APIROOT.'/forumACP.class.php');
 				$subcontroller = new forumACP();
-			} elseif ($pathOptions[0] == 'getForum') 
+			} elseif ($pathOptions[0] == 'getForum')
 				$this->getForum();
-			elseif ($pathOptions[0] == 'getThreads') 
+			elseif ($pathOptions[0] == 'getThreads')
 				$this->getThreads();
-			elseif ($pathOptions[0] == 'getThread') 
+			elseif ($pathOptions[0] == 'getThread')
 				$this->getThread();
-			elseif ($pathOptions[0] == 'markAsRead') 
+			elseif ($pathOptions[0] == 'markAsRead')
 				$this->markAsRead();
-			elseif ($pathOptions[0] == 'getSubscriptions') 
+			elseif ($pathOptions[0] == 'getSubscriptions')
 				$this->getSubscriptions();
-			elseif ($pathOptions[0] == 'toggleSub') 
+			elseif ($pathOptions[0] == 'toggleSub')
 				$this->toggleSub();
-			elseif ($pathOptions[0] == 'unsubscribe') 
+			elseif ($pathOptions[0] == 'unsubscribe')
 				$this->unsubscribe();
-			elseif ($pathOptions[0] == 'toggleCardVis') 
+			elseif ($pathOptions[0] == 'toggleCardVis')
 				$this->toggleCardVis();
-			elseif ($pathOptions[0] == 'toggleThreadState') 
+			elseif ($pathOptions[0] == 'toggleThreadState')
 				$this->toggleThreadState();
-			elseif ($pathOptions[0] == 'savePost') 
+			elseif ($pathOptions[0] == 'savePost')
 				$this->savePost();
-			elseif ($pathOptions[0] == 'getPost') 
+			elseif ($pathOptions[0] == 'getPost')
 				$this->getPost();
-			elseif ($pathOptions[0] == 'deletePost') 
+			elseif ($pathOptions[0] == 'deletePost')
 				$this->deletePost();
-			else 
+			else
 				displayJSON(array('failed' => true));
 		}
 
@@ -49,13 +50,46 @@
 				foreach ($forum['heritage'] as $hForumID) {
 					$forums[$hForumID]['totalThreadCount'] += $forum['threadCount'];
 					$forums[$hForumID]['totalPostCount'] += $forum['postCount'];
-					if ($forums[$hForumID]['latestPost']['datePosted'] == null || $forum['latestPost']['datePosted'] > $forums[$hForumID]['latestPost']['datePosted']) 
+					if ($forums[$hForumID]['latestPost']['datePosted'] == null || $forum['latestPost']['datePosted'] > $forums[$hForumID]['latestPost']['datePosted'])
 						$forums[$hForumID]['latestPost'] = $forum['latestPost'];
+					if ($forum['newPosts'])
+						$forums[$hForumID]['newPosts'] = true;
 				}
 			}
 			$forums[$forumID]['subscribed'] = (bool) $mongo->forumSubs->findOne(['userID' => $currentUser->userID, 'type' => 'f', 'forumID' => $forumID], ['_id' => true]);
+			$forums[$forumID]['heritage'] = $forumManager->getHeritage();
 			$returns = array('success' => true, 'forums' => $forums);
-			if (isset($_POST['getThreads']) && $_POST['getThreads']) 
+
+			if ($forums[$forumID]['gameID']) {
+				$decks = $mongo->games->findOne(['gameID' => $forums[$forumID]['gameID']], ['decks' => true]);
+				$returns['decks'] = [];
+				foreach ($decks['decks'] as $deck) {
+					$deck = new Deck($deck);
+					if ($game['isGM'] || $deck->checkPermission($currentUser->userID)) {
+						$deck = [
+							'deckID' => $deck->getDeckID(),
+							'label' => $deck->getLabel(),
+							'type' => $deck->getType(),
+							'size' => sizeof($deck->getDeck()),
+							'position' => $deck->getPosition(),
+						];
+						$returns['decks'][] = $deck;
+					}
+				}
+			}
+
+			if (isset($_POST['returnFields']) && $_POST['returnFields'] != null && sizeof($_POST['returnFields'])) {
+				$returnFields = array_merge(['forumID'], $_POST['returnFields']);
+				foreach ($forums as $forumID => $forum) {
+					$hForum = [];
+					foreach ($returnFields as $field)
+						$hForum[$field] = $forum[$field];
+					$forum[$forumID] = $hForum;
+				}
+				$returns['forums'] = $forums;
+			}
+
+			if (isset($_POST['getThreads']) && $_POST['getThreads'])
 				$returns['threads'] = $this->getAndProcessThreads($forumID, $forumManager);
 
 			displayJSON($returns);
@@ -72,9 +106,8 @@
 		}
 
 		private function getAndProcessThreads($forumID, $forumManager) {
-			$forums = $forumManager->getForumsVars();
 			$threads = $forumManager->getThreads($_POST['page']);
-			$markedRead = $forums[$forumID]['markedRead'];
+			$markedRead = $forumManager->getForumProperty($forumID, 'markedRead');
 			foreach ($threads as &$thread) {
 				$thread = $thread->getThreadVars();
 				$thread['datePosted'] = $thread['datePosted']* 1000;
@@ -85,80 +118,87 @@
 			return $threads;
 		}
 
-		public function getThread() {
+		public function getThread($returnData = false, $basic = false) {
 			global $currentUser, $mongo;
 
-			$threadID = (int) $_POST['threadID'];
+			$threadID = (int) ($returnData === false?$_POST['threadID']:$returnData);
+			$basic = ((isset($_POST['basic']) && $_POST['basic']) || ($returnData !== false && $basic))?true:false;
 			$threadManager = new ThreadManager($threadID);
-			if (!$threadManager || !$threadManager->getPermissions('read')) 
+			if (!$threadManager || !$threadManager->getPermissions('read'))
 				displayJSON(['failed' => true, 'noPermission' => true]);
-			$threadManager->setPage();
+			if (!$basic)
+				$threadManager->setPage();
 			$posts = [];
 			$getChars = [];
 			$maxPost = 0;
 			$lastPost = $threadManager->thread->getLastPost('postID');
 			$lastRead = $threadManager->getThreadProperty('lastRead');
 			$newPost = false;
-			foreach ($threadManager->getPosts() as $post) {
-				$post = $post->getPostVars();
-				$post['title'] = printReady(BBCode2Html($post['title']));
-				$post['author']['lastActivity'] *= 1000;
-				if ($post['postAs'] && !in_array($post['postAs'], $getChars)) 
-					$getChars[] = $post['postAs'];
-				if ($post['lastEdit'] != null) 
-					$post['lastEdit'] *= 1000;
-				$post['newPost'] = false;
-				if (!$newPost && $post['datePosted'] > $lastRead) {
-					$post['newPost'] = true;
-					$newPost = true;
-				}
-				$post['lastPost'] = false;
-				if ($threadManager->getLastPost('postID') == $post['postID']) {
-					$post['lastPost'] = true;
-					if (!$newPost) 
+			$game = null;
+			$characters = [];
+			$decks = [];
+			if (!$basic) {
+				foreach ($threadManager->getPosts() as $post) {
+					$post = $post->getPostVars();
+					$post['title'] = printReady(BBCode2Html($post['title']));
+					$post['author']['lastActivity'] *= 1000;
+					if ($post['postAs'] && !in_array($post['postAs'], $getChars))
+						$getChars[] = $post['postAs'];
+					if ($post['lastEdit'] != null)
+						$post['lastEdit'] *= 1000;
+					$post['newPost'] = false;
+					if (!$newPost && $post['datePosted'] > $lastRead) {
 						$post['newPost'] = true;
+						$newPost = true;
+					}
+					$post['lastPost'] = false;
+					if ($threadManager->getLastPost('postID') == $post['postID']) {
+						$post['lastPost'] = true;
+						if (!$newPost)
+							$post['newPost'] = true;
+					}
+					$post['datePosted'] *= 1000;
+					$posts[] = $post;
+
+					if ($maxPost < $post['datePosted'])
+						$maxPost = $post['datePosted'];
 				}
-				$post['datePosted'] *= 1000;
-				$posts[] = $post;
+				if ($maxPost > $lastRead)
+					$threadManager->updateLastRead($maxPost / 1000);
+					// $mongo->forumsReadData->update(['threadID' => $threadID], [
+					// 	'userID' => $currentUser->userID,
+					// 	'type' => 'thread',
+					// 	'threadID' => $threadID,
+					// 	'forumID' => $threadManager->getThreadProperty('forumID'),
+					// 	'lastRead' => new MongoDate($maxPost / 1000)
+					// ], ['upsert' => true]);
+				$rPostAsChars = $mongo->characters->find(['characterID' => ['$in' => $getChars]], ['characterID' => true, 'system' => true, 'name' => true]);
+				$postAsChars = [];
+				foreach ($rPostAsChars as $character) {
+					$charObj = CharacterFactory::getCharacter($character['system']);
+					$postAsChars[$character['characterID']] = [
+						'characterID' => $character['characterID'],
+						'name' => $character['name'],
+						'system' => $character['system'],
+						'avatar' => file_exists(FILEROOT."/characters/avatars/{$character['characterID']}.jpg")?"/characters/avatars/{$character['characterID']}.jpg":false,
+						'permissions' => $charObj->checkPermissions()
+					];
+				}
 
-				if ($maxPost < $post['datePosted']) 
-					$maxPost = $post['datePosted'];
+				$markedRead = $threadManager->forumManager->forums[$threadManager->getThreadProperty('forumID')]->getMarkedRead();
+				$subscribed = false;
+				$forumSub = (bool) $mongo->forumSubs->findOne(['userID' => $currentUser->userID, 'type' => 'f', 'forumID' => $threadManager->getThreadProperty('forumID')], ['_id' => true]);
+				if (!$forumSub) {
+					$threadSub = (bool) $mongo->forumSubs->findOne(['userID' => $currentUser->userID, 'type' => 't', 'threadID' => $threadID], ['_id' => true]);
+					if ($threadSub)
+						$subscribed = 't';
+				} else
+					$subscribed = 'f';
 			}
-			if ($maxPost > $lastRead) 
-				$threadManager->updateLastRead($maxPost / 1000);
-				// $mongo->forumsReadData->update(['threadID' => $threadID], [
-				// 	'userID' => $currentUser->userID,
-				// 	'type' => 'thread',
-				// 	'threadID' => $threadID,
-				// 	'forumID' => $threadManager->getThreadProperty('forumID'),
-				// 	'lastRead' => new MongoDate($maxPost / 1000)
-				// ], ['upsert' => true]);
-			$rPostAsChars = $mongo->characters->find(['characterID' => ['$in' => $getChars]], ['characterID' => true, 'system' => true, 'name' => true]);
-			$postAsChars = [];
-			foreach ($rPostAsChars as $character) {
-				$charObj = CharacterFactory::getCharacter($character['system']);
-				$postAsChars[$character['characterID']] = [
-					'characterID' => $character['characterID'],
-					'name' => $character['name'],
-					'system' => $character['system'],
-					'avatar' => file_exists(FILEROOT."/characters/avatars/{$character['characterID']}.jpg")?"/characters/avatars/{$character['characterID']}.jpg":false,
-					'permissions' => $charObj->checkPermissions()
-				];
-			}
-
-			$markedRead = $threadManager->forumManager->forums[$threadManager->getThreadProperty('forumID')]->getMarkedRead();
-			$subscribed = false;
-			$forumSub = (bool) $mongo->forumSubs->findOne(['userID' => $currentUser->userID, 'type' => 'f', 'forumID' => $threadManager->getThreadProperty('forumID')], ['_id' => true]);
-			if (!$forumSub) {
-				$threadSub = (bool) $mongo->forumSubs->findOne(['userID' => $currentUser->userID, 'type' => 't', 'threadID' => $threadID], ['_id' => true]);
-				if ($threadSub) 
-					$subscribed = 't';
-			} else 
-				$subscribed = 'f';
 			$poll = null;
 			try {
 				$poll = new ForumPoll($threadID);
-				if ($poll->threadID == null) 
+				if ($poll->threadID == null)
 					$poll = null;
 				else {
 					$poll = $poll->getPollVars();
@@ -168,45 +208,59 @@
 
 			if ($threadManager->isGameForum()) {
 				$gameID = (int) $threadManager->getForumProperty('gameID');
-				$game = $mongo->games->findOne(array('gameID' => $gameID), array('system' => true, 'players' => true));
+				$game = $mongo->games->findOne(array('gameID' => $gameID), array('system' => true, 'players' => true, 'decks' => true));
 				$isGM = false;
 				foreach ($game['players'] as $player) {
-					if ($player['user']['userID'] == $currentUser->userID) 
-						if ($player['isGM']) 
-							$isGM = true;
-					if ($player['isGM']) 
+					if ($player['user']['userID'] == $currentUser->userID && $player['isGM'])
+						$isGM = true;
+					if ($player['isGM'])
 						$gms[] = $player['user']['userID'];
 				}
+				$decks = $game['decks'];
 				$game = [
 					'gameID' => $gameID,
 					'isGM' => $isGM,
 					'gms' => $gms
 				];
 				$rCharacters = $mongo->characters->find(array('game.gameID' => $gameID, 'game.approved' => true, 'user.userID' => $currentUser->userID), array('characterID' => true, 'name' => true));
-				$characters = array();
 				foreach ($rCharacters as $character)
-					if (strlen($character['name'])) 
+					if (strlen($character['name']))
 						$characters[$character['characterID']] = $character['name'];
-				if (sizeof($characters) == 0) 
+				if (sizeof($characters) == 0)
 					$characters = null;
-			} else 
-				$game = null;
+				if (sizeof($decks)) {
+					foreach ($decks as &$deck) {
+						$deck = new Deck($deck);
+						if ($game['isGM'] || $deck->checkPermission($currentUser->userID)) {
+							$deck = [
+								'deckID' => $deck->getDeckID(),
+								'label' => $deck->getLabel(),
+								'type' => $deck->getType(),
+								'size' => sizeof($deck->getDeck()),
+								'position' => $deck->getPosition(),
+							];
+						}
+					}
+				}
+			}
 
-			foreach ($posts as &$post) {
-				if ($post['postAs'] && $postAsChars[$post['postAs']]) 
-					$post['postAs'] = $postAsChars[$post['postAs']];
-				else 
-					$post['postAs'] = false;
+			if (!$basic) {
+				foreach ($posts as &$post) {
+					if ($post['postAs'] && $postAsChars[$post['postAs']])
+						$post['postAs'] = $postAsChars[$post['postAs']];
+					else
+						$post['postAs'] = false;
 
-				if ($game) 
-					$post['author']['isGM'] = in_array($post['author']['userID'], $game['gms']);
+					if ($game)
+						$post['author']['isGM'] = in_array($post['author']['userID'], $game['gms']);
 
-				$post['userIsAuthor'] = $currentUser->userID == $post['author']['userID'];
+					$post['userIsAuthor'] = $currentUser->userID == $post['author']['userID'];
 
-				$post['message'] = printReady(BBCode2Html($post['message'], $post));
+					$post['message'] = printReady(BBCode2Html($post['message'], $post));
 
-				if ($post['rolls']) 
-					$post['showRollHidden'] = ($game && $game['isGM']) || $post['userIsAuthor'];
+					if ($post['rolls'])
+						$post['showRollHidden'] = ($game && $game['isGM']) || $post['userIsAuthor'];
+				}
 			}
 
 			$thread = [
@@ -227,10 +281,13 @@
 				'posts' => $posts,
 				'page' => $threadManager->page,
 				'characters' => isset($characters)?$characters:null,
-				'game' => $game
+				'game' => $game,
 			];
 
-			displayJSON(['success' => true, 'thread' => $thread]);
+			if ($returnData === false)
+				displayJSON(['success' => true, 'thread' => $thread, 'decks' => $decks]);
+			else
+				return [$threadManager, $thread];
 		}
 
 		public function markAsRead() {
@@ -239,8 +296,8 @@
 
 			$rChildren = $mongo->forums->find(['heritage' => $forumID], ['forumID' => true]);
 			$children = [];
-			foreach ($rChildren as $child) 
-				if ($child['forumID'] != $forumID) 
+			foreach ($rChildren as $child)
+				if ($child['forumID'] != $forumID)
 					$children[] = $child['forumID'];
 
 			$mongo->forumsReadData->remove(['userID' => $currentUser->userID, 'forumID' => ['$in' => $children]]);
@@ -266,15 +323,15 @@
 						$forum['order'] = (int) $forum['order'];
 						$forum['isSubbed'] = (bool) $forum['isSubbed'];
 						$forums[(int) $forum['forumID']] = $forum;
-					} else 
-						if ($forum['isSubbed']) 
+					} else
+						if ($forum['isSubbed'])
 							$forums[(int) $forum['forumID']]['isSubbed'] = true;
 				}
 
 				$rThreads = $mysql->query("SELECT f.forumID, f.title forumTitle, t.threadID, p.title threadTitle FROM forumSubs s INNER JOIN threads t ON s.ID = t.threadID INNER JOIN forums f ON t.forumID = f.forumID INNER JOIN posts p ON t.firstPostID = p.postID WHERE s.userID = {$userID} AND s.type = 't' ORDER BY LENGTH(f.heritage), `order`");
 				$threads = array();
 				foreach ($rThreads as $thread) {
-					if (!isset($threads[$thread['forumID']])) 
+					if (!isset($threads[$thread['forumID']]))
 						$threads[(int) $thread['forumID']] = array(
 							'forumID' => (int) $thread['forumID'],
 							'title' => printReady($thread['forumTitle']),
@@ -295,11 +352,11 @@
 			global $currentUser, $mongo;
 
 			$sub = ['type' => $_POST['type'], 'userID' => $currentUser->userID];
-			if (!is_string($sub['type']) || !in_array($sub['type'], ['f', 't'])) 
+			if (!is_string($sub['type']) || !in_array($sub['type'], ['f', 't']))
 				displayJSON(['failed' => true, 'error' => 'invalidType']);
-			if ($sub['type'] == 'f') 
+			if ($sub['type'] == 'f')
 				$sub['forumID'] = (int) $_POST['typeID'];
-			else 
+			else
 				$sub['threadID'] = (int) $_POST['typeID'];
 
 			$exists = $mongo->forumSubs->findOne($sub, ['_id' => true]);
@@ -316,9 +373,9 @@
 			global $mysql;
 
 			$userID = (int) $_POST['userID'];
-			if ($_POST['type'] == 'f' || $_POST['type'] == 't') 
+			if ($_POST['type'] == 'f' || $_POST['type'] == 't')
 				$type = $_POST['type'];
-			else 
+			else
 				displayJSON(array('failed' => true, 'errors' => array('invalidType')));
 			$typeID = (int) $_POST['id'];
 
@@ -357,11 +414,11 @@
 			$threadID = (int) $_POST['threadID'];
 			$state = $_POST['state'];
 
-			if (($state != 'locked' && $state != 'sticky') || $threadID <= 0) 
+			if (($state != 'locked' && $state != 'sticky') || $threadID <= 0)
 				displayJSON(['failed' => true]);
 
 			$threadManager = new ThreadManager($threadID);
-			if (!$threadManager || !$threadManager->getPermissions('moderate')) 
+			if (!$threadManager || !$threadManager->getPermissions('moderate'))
 				displayJSON(['failed' => true, 'noPermission' => true]);
 			$stateVal = $threadManager->toggleThreadState($state);
 
@@ -374,38 +431,38 @@
 			if ($_POST['threadID']) {
 				$threadID = intval($_POST['threadID']);
 				$threadManager = new ThreadManager($threadID);
-				if (!$threadManager->getPermissions('write') || ($locked && $threadManager->getPermissions('moderate'))) 
+				if (!$threadManager->getPermissions('write') || ($locked && $threadManager->getPermissions('moderate')))
 					displayJSON(['failed' => true, 'noPermission' => true]);
-			} else 
+			} else
 				$forumManager = new ForumManager((int) $_POST['new']);
 
 			if ($_POST['edit']) {
 				$postID = intval($_POST['edit']);
 				$post = new Post($postID);
 				$threadID = intval($post->threadID);
-			} else 
+			} else
 				$post = new Post();
 			$post->setTitle($_POST['title']);
 			$post->setPostAs($_POST['postAs']);
 			$message = $_POST['message'];
-			if (isset($threadID)) 
+			if (isset($threadID))
 				$gameID = $threadManager->getForumProperty('gameID');
-			elseif (isset($_POST['new'])) 
+			elseif (isset($_POST['new']))
 				$gameID = $forumManager->getForumProperty((int) $_POST['new'], 'gameID');
 
 			if (preg_match_all('/\[note="?(\w[\w +;,]+?)"?](.*?)\[\/note\]/ms', $message, $matches, PREG_SET_ORDER)) {
 				$allUsers = array();
-				foreach ($matches as $match) 
-					foreach (preg_split('/[^\w]+/', $match[1]) as $eachUser) 
+				foreach ($matches as $match)
+					foreach (preg_split('/[^\w]+/', $match[1]) as $eachUser)
 						$allUsers[] = $eachUser;
 				$allUsers = array_unique($allUsers);
 				$userCheck = $mysql->prepare('SELECT username FROM users WHERE LOWER(username) = :username');
 				foreach ($allUsers as $key => $username) {
 					$userCheck->bindValue(':username', strtolower($username));
 					$userCheck->execute();
-					if (!$userCheck->rowCount()) 
+					if (!$userCheck->rowCount())
 						unset($allUsers[$key]);
-					else 
+					else
 						$allUsers[$key] = $userCheck->fetchColumn();
 				}
 				foreach ($matches as $match) {
@@ -413,7 +470,7 @@
 					$validUsers = array();
 					foreach ($matchUsers as $user) {
 						foreach ($allUsers as $realUser) {
-							if (strtolower($user) == strtolower($realUser)) 
+							if (strtolower($user) == strtolower($realUser))
 								$validUsers[] = $realUser;
 						}
 					}
@@ -422,7 +479,7 @@
 				}
 			}
 			$post->setMessage($message);
-			
+
 			$rolls = array();
 			$draws = array();
 
@@ -441,15 +498,15 @@
 
 			if (sizeof($_POST['decks'])) {
 				$returnFields = array('players' => true);
-				if (sizeof($_POST['decks'])) 
+				if (sizeof($_POST['decks']))
 					$returnFields['decks'] = true;
 				$game = $mongo->games->findOne(array('gameID' => $gameID, 'players.user.userID' => $currentUser->userID), $returnFields);
 				if ($game) {
 					$rDecks = $game['decks'];
 					$decks = array();
 					$draws = array_filter($_POST['decks'], function($value) { return intval($value['draw']) > 0?true:false; });
-					foreach ($rDecks as $deck) 
-						if (array_key_exists((int) $deck['deckID'], $draws) && in_array($currentUser->userID, $deck['permissions'])) 
+					foreach ($rDecks as $deck)
+						if (array_key_exists((int) $deck['deckID'], $draws) && in_array($currentUser->userID, $deck['permissions']))
 							$decks[$deck['deckID']] = $deck;
 					$isGM = null;
 					foreach ($game['players'] as $player) {
@@ -470,7 +527,7 @@
 							}
 
 							$draw['cardsDrawn'] = array();
-							for ($count = $decks[$deckID]['position']; $count <= $decks[$deckID]['position'] + $draw['draw'] - 1; $count++) 
+							for ($count = $decks[$deckID]['position']; $count <= $decks[$deckID]['position'] + $draw['draw'] - 1; $count++)
 								$draw['cardsDrawn'][] = $deck[$count - 1];
 							$draw['cardsDrawn'] = implode('~', $draw['cardsDrawn']);
 							$draw['reason'] = sanitizeString($draw['reason']);
@@ -487,45 +544,45 @@
 				$threadManager = new ThreadManager(null, $forumID);
 				$threadManager->thread->title = $post->getTitle();
 
-				if (!$threadManager->getPermissions('createThread')) 
+				if (!$threadManager->getPermissions('createThread'))
 					displayJSON(['failed' => true, 'noPermission' => true]);
 				$threadManager->thread->setState('sticky', isset($_POST['sticky']) && $threadManager->getPermissions('moderate')?true:false);
 				$threadManager->thread->setState('locked', isset($_POST['locked']) && $threadManager->getPermissions('moderate')?true:false);
 				$threadManager->thread->setAllowRolls(isset($_POST['allowRolls']) && $threadManager->getPermissions('addRolls')?true:false);
 				$threadManager->thread->setAllowDraws(isset($_POST['allowDraws']) && $threadManager->getPermissions('addRolls')?true:false);
-				
-				if (strlen($post->getTitle()) == 0) 
+
+				if (strlen($post->getTitle()) == 0)
 					$errors[] = 'noTitle';
-				if (strlen($post->getMessage()) == 0) 
+				if (strlen($post->getMessage()) == 0)
 					$errors[] = 'noMessage';
-				
+
 				$threadManager->thread->poll->setQuestion($_POST['poll']);
 				$threadManager->thread->poll->parseOptions($_POST['pollOptions']);
 				if (strlen($threadManager->thread->poll->getQuestion()) && sizeof($threadManager->thread->poll->getOptions())) {
-					if (strlen($threadManager->thread->poll->getQuestion()) == 0 && sizeof($threadManager->thread->poll->getOptions()) != 0) 
+					if (strlen($threadManager->thread->poll->getQuestion()) == 0 && sizeof($threadManager->thread->poll->getOptions()) != 0)
 						$errors[] = 'noQuestion';
-					if (strlen($threadManager->thread->poll->getQuestion()) && sizeof($threadManager->thread->poll->getOptions()) <= 1) 
+					if (strlen($threadManager->thread->poll->getQuestion()) && sizeof($threadManager->thread->poll->getOptions()) <= 1)
 						$errors[] = 'noOptions';
 					$threadManager->thread->poll->setOptionsPerUser($_POST['optionsPerUser']);
-					if ($threadManager->thread->poll->getOptionsPerUser() == 0) 
+					if ($threadManager->thread->poll->getOptionsPerUser() == 0)
 						$errors[] = 'noOptionsPerUser';
 					$threadManager->thread->poll->setAllowRevoting($_POST['allowRevoting']);
 				}
 
-				if (sizeof($errors)) 
+				if (sizeof($errors))
 					displayJSON(['failed' => true, 'errors' => $errors]);
-				else 
+				else
 					$postID = $threadManager->saveThread($post);
 			} elseif ($_POST['threadID']) {
 				$threadID = intval($_POST['threadID']);
 
 				$post->setThreadID($threadID);
-				if (strlen($post->getTitle()) == 0) 
+				if (strlen($post->getTitle()) == 0)
 					$post->setTitle('Re: '.$threadManager->getThreadProperty('title'));
-				if (strlen($post->getMessage()) == 0) 
+				if (strlen($post->getMessage()) == 0)
 					$errors[] = 'noMessage';
 
-				if (sizeof($errors)) 
+				if (sizeof($errors))
 					displayJSON(['failed' => true, 'errors' => $errors]);
 				else {
 					$postID = $post->savePost();
@@ -537,12 +594,12 @@
 				$threadManager = new ThreadManager($post->getThreadID());
 				$firstPost = $threadManager->getThreadProperty('firstPostID') == $post->getPostID()?true:false;
 
-				if (!(($post->getAuthor('userID') == $currentUser->userID && $threadManager->getPermissions('editPost') && !$threadManager->thread->getStates('locked')) || $threadManager->getPermissions('moderate'))) 
+				if (!(($post->getAuthor('userID') == $currentUser->userID && $threadManager->getPermissions('editPost') && !$threadManager->thread->getStates('locked')) || $threadManager->getPermissions('moderate')))
 					displayJSON(['failed' => true, 'cantEdit' => true]);
 
-				if ($firstPost && strlen($post->getTitle()) == 0) 
+				if ($firstPost && strlen($post->getTitle()) == 0)
 					$errors[] = 'noTitle';
-				if (strlen($post->getMessage()) == 0) 
+				if (strlen($post->getMessage()) == 0)
 					$errors[] = 'noMessage';
 
 				if ($firstPost) {
@@ -555,19 +612,19 @@
 						$threadManager->thread->poll->setQuestion($_POST['poll']);
 						$threadManager->thread->poll->parseOptions($_POST['pollOptions']);
 						if (strlen($threadManager->thread->poll->getQuestion()) && sizeof($threadManager->thread->poll->getOptions())) {
-							if (strlen($threadManager->thread->poll->getQuestion()) == 0 && sizeof($threadManager->thread->poll->getOptions()) != 0) 
+							if (strlen($threadManager->thread->poll->getQuestion()) == 0 && sizeof($threadManager->thread->poll->getOptions()) != 0)
 								$errors[] = 'noQuestion';
-							if (strlen($threadManager->thread->poll->getQuestion()) && sizeof($threadManager->thread->poll->getOptions()) <= 1) 
+							if (strlen($threadManager->thread->poll->getQuestion()) && sizeof($threadManager->thread->poll->getOptions()) <= 1)
 								$errors[] = 'noOptions';
 							$threadManager->thread->poll->setOptionsPerUser($_POST['optionsPerUser']);
-							if ($threadManager->thread->poll->getOptionsPerUser() == 0) 
+							if ($threadManager->thread->poll->getOptionsPerUser() == 0)
 								$errors[] = 'noOptionsPerUser';
 							$threadManager->thread->poll->setAllowRevoting($_POST['allowRevoting']);
 						}
 					}
 				}
 
-				if (sizeof($errors)) 
+				if (sizeof($errors))
 					displayJSON(['failed' => true, 'errors' => $errors]);
 				else {
 					if (((time() + 300) > strtotime($post->getDatePosted()) || (time() + 60) > strtotime($post->getLastEdit())) && !$threadManager->getPermissions('moderate') && $post->getModified()) {
@@ -580,7 +637,7 @@
 						$threadManager->thread->setState('locked', isset($_POST['locked']) && $threadManager->getPermissions('moderate')?true:false);
 						$threadManager->thread->setAllowRolls(isset($_POST['allowRolls']) && $threadManager->getPermissions('addRolls')?true:false);
 						$threadManager->thread->setAllowDraws(isset($_POST['allowDraws']) && $threadManager->getPermissions('addDraws')?true:false);
-						
+
 						if (isset($_POST['deletePoll'])) $threadManager->deletePoll();
 
 						$threadManager->saveThread($post);
@@ -590,7 +647,7 @@
 
 						$post->savePost();
 					}
-					
+
 					foreach ($_POST['nVisibility'] as $rollID => $nVisibility) {
 						if (intval($nVisibility) != intval($_POST['oVisibility'][$rollID])) $mysql->query('UPDATE rolls SET visibility = '.intval($nVisibility)." WHERE rollID = $rollID");
 					}
@@ -603,13 +660,13 @@
 					['threadID' => $threadManager->getThreadID()]
 				]], ['userID' => true]);
 				$userIDs = [];
-				foreach ($subbedUsers as $user) 
+				foreach ($subbedUsers as $user)
 					$userIDs[] = $user['userID'];
 				$userIDs = array_unique($userIDs);
 				$subbedUsers = $mysql->query("SELECT email FROM users WHERE userID IN (".implode(',', $userIDs).")");
 				$subs = [];
-				if ($subbedUsers->rowCount()) 
-					foreach ($subbedUsers as $user) 
+				if ($subbedUsers->rowCount())
+					foreach ($subbedUsers as $user)
 						$subs[] = $user['email'];
 				if (sizeof($subs)) {
 					$subs = array_unique($subs);
@@ -617,7 +674,7 @@
 					include('forums/process/threadSubEmail.php');
 					$email = ob_get_contents();
 					ob_end_clean();
-					foreach ($subs as $sub) 
+					foreach ($subs as $sub)
 						@mail($sub, "New Posts", $email, "Content-type: text/html\r\nFrom: Gamers Plane <contact@gamersplane.com>");
 				}
 			}
@@ -628,13 +685,15 @@
 		public function getPost() {
 			global $mongo;
 			$postID = (int) $_POST['postID'];
-			$basic = (bool) $_POST['basic'];
 
 			$postData = $mongo->posts->findOne(['postID' => $postID]);
-			$threadManager = new ThreadManager($postData['threadID']);
+			list($threadManager, $thread) = $this->getThread($postData['threadID'], true);
 			$post = $threadManager->getPost($postID, $postData);
 			$post = $post->getPostVars();
-			$post['message'] = printReady(BBCode2Html($post['message'], $post));
+			$post['message'] = [
+				'raw' => $post['message'],
+				'print' => printReady(BBCode2Html($post['message'], $post))
+			];
 
 			$thread = [
 				'threadID' => $threadManager->getThreadID(),
@@ -664,25 +723,25 @@
 			$postID = (int) $_POST['postID'];
 
 			$postData = $mongo->posts->findOne(['postID' => $postID]);
-			if (!$postData) 
+			if (!$postData)
 				displayJSON(['failed' => true, 'noPost' => true]);
 			$threadManager = new ThreadManager($postData['threadID']);
 			$post = $threadManager->getPost($postID, $postData);
 			$deleteType = $threadManager->getFirstPostID() == $postID?'thread':'post';
 
 			if (!(
-				$threadManager->getPermissions('moderate') || 
-				($post->getAuthor('userID') == $currentUser->userID && $deleteType == 'post' && $threadManager->getPermissions('deletePost')) || 
+				$threadManager->getPermissions('moderate') ||
+				($post->getAuthor('userID') == $currentUser->userID && $deleteType == 'post' && $threadManager->getPermissions('deletePost')) ||
 				($post->getAuthor('userID') == $currentUser->userID && $deleteType == 'thread' && $threadManager->getPermissions('deleteThread'))
-			)) 
+			))
 				displayJSON(['failed' => true, 'noPermission' => true]);
 
 			$threadManager->deletePost($post);
 
 			$return = ['success' => true, 'deleteType' => $deleteType];
-			if ($deleteType == 'thread') 
+			if ($deleteType == 'thread')
 				$return['forumID'] = $threadManager->getThreadProperty('forumID');
-			else 
+			else
 				$return['threadID'] = $threadManager->getThreadID() ;
 			displayJSON($return);
 		}

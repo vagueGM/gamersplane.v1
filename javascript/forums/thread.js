@@ -1,4 +1,4 @@
-controllers.controller('thread', ['$scope', '$location', '$timeout', '$anchorScroll', 'Range', 'CurrentUser', 'ForumsService', function ($scope, $location, $timeout, $anchorScroll, Range, CurrentUser, ForumsService) {
+controllers.controller('thread', ['$scope', '$location', '$timeout', '$anchorScroll', '$cookies', 'CurrentUser', 'ForumsService', function ($scope, $location, $timeout, $anchorScroll, $cookies, CurrentUser, ForumsService) {
 	$scope.PAGINATE_PER_PAGE = PAGINATE_PER_PAGE;
 	$scope.$emit('pageLoading');
 	var pathElements = getPathElements();
@@ -30,12 +30,13 @@ controllers.controller('thread', ['$scope', '$location', '$timeout', '$anchorScr
 		$scope.loggedIn = loggedIn;
 		if (loggedIn) {
 			$scope.currentUser = CurrentUser.get();
-			if (['r', 'l', 'c'].indexOf($scope.currentUser.usermeta.postSide) > -1) 
+			if (['r', 'l', 'c'].indexOf($scope.currentUser.usermeta.postSide) > -1)
 				postSide = $scope.currentUser.usermeta.postSide;
 			$scope.thread = {};
 			$scope.quickPost = {
 				'postAs': null,
-				'message': ''
+				'message': '',
+				'button': ''
 			}
 		}
 		loadThread();
@@ -44,18 +45,18 @@ controllers.controller('thread', ['$scope', '$location', '$timeout', '$anchorScr
 	function loadThread() {
 		ForumsService.getThread($scope.threadID, view, viewVal).then(function (data) {
 			$scope.thread = data.thread;
-			if ($scope.thread.locked) 
+			if ($scope.thread.options.locked) 
 				$scope.quickMod.combobox.locked = 'Unlock';
-			if ($scope.thread.sticky) 
+			if ($scope.thread.options.sticky)
 				$scope.quickMod.combobox.sticky = 'Unsticky';
 			if ($scope.thread.poll) {
-				$scope.thread.poll.canVote = $scope.loggedIn && !$scope.thread.locked && (!$scope.thread.poll.voted || $scope.thread.poll.allowRevoting);
+				$scope.thread.poll.canVote = $scope.loggedIn && !$scope.thread.options.locked && (!$scope.thread.poll.voted || $scope.thread.poll.allowRevoting);
 				$scope.thread.poll.votes = $scope.thread.poll.optionsPerUser == 1?null:[];
 				$scope.thread.poll.options.forEach(function (option, index) {
 					if ((!$scope.thread.poll.voted || $scope.thread.poll.allowRevoting) && option.voted) {
-						if ($scope.thread.poll.optionsPerUser == 1) 
+						if ($scope.thread.poll.optionsPerUser == 1)
 							$scope.thread.poll.votes = index;
-						else 
+						else
 							$scope.thread.poll.votes.push(index);
 					}
 					option.width = (50 + Math.floor(option.numVotes / $scope.thread.poll.highestVotes * 475)) + 'px';
@@ -64,14 +65,14 @@ controllers.controller('thread', ['$scope', '$location', '$timeout', '$anchorScr
 			}
 			$scope.thread.posts.forEach(function (post, index) {
 				post.postSide = postSide;
-				if ($scope.loggedIn && $scope.currentUser.usermeta.postSide == 'c') 
+				if ($scope.loggedIn && $scope.currentUser.usermeta.postSide == 'c')
 					postSide = postSide == 'l'?'r':'l';
 				post.permissions = {
 					'edit': false,
 					'delete': false
 				};
-				if ($scope.loggedIn && (post.author.userID == $scope.currentUser.userID && !$scope.thread.locked) || $scope.thread.permissions.moderate) {
-					if ($scope.thread.permissions.editPost || $scope.thread.permissions.moderate) 
+				if ($scope.loggedIn && (post.author.userID == $scope.currentUser.userID && !$scope.thread.options.locked) || $scope.thread.permissions.moderate) {
+					if ($scope.thread.permissions.editPost || $scope.thread.permissions.moderate)
 						post.permissions.edit = true;
 					if ($scope.thread.permissions.moderate || ($scope.thread.permissions.deletePost && post.postID != $scope.thread.firstPostID) || ($scope.thread.permissions.deleteThread && post.postID == $scope.thread.firstPostID))
 						post.permissions.delete = true;
@@ -98,7 +99,7 @@ controllers.controller('thread', ['$scope', '$location', '$timeout', '$anchorScr
 
 	$scope.toggleSubscribe = function () {
 		ForumsService.toggleSub('t', $scope.threadID).then(function (data) {
-			if (data.success) 
+			if (data.success)
 				$scope.thread.subscribed = $scope.thread.subscribed == 't'?null:'t';
 		});
 	};
@@ -110,7 +111,7 @@ controllers.controller('thread', ['$scope', '$location', '$timeout', '$anchorScr
 	$scope.toggleCardVis = function (postID, deckID, card) {
 		if (Number.isInteger(postID) && Number.isInteger(deckID) && Number.isInteger(card.card)) {
 			ForumsService.toggleCardVis(postID, deckID, card.card).then(function (data) {
-				if (data.success) 
+				if (data.success)
 					card.visible = !card.visible;
 			});
 		}
@@ -130,10 +131,10 @@ controllers.controller('thread', ['$scope', '$location', '$timeout', '$anchorScr
 				if (data.success) {
 					stateVal = data[state];
 					if (state == 'locked') {
-						$scope.thread.locked = stateVal;
+						$scope.thread.options.locked = stateVal;
 						$scope.quickMod.combobox.locked = $scope.quickMod.combobox.locked == 'Unlock'?'Lock':'Unlock';
 					} else {
-						$scope.thread.sticky = stateVal;
+						$scope.thread.options.sticky = stateVal;
 						$scope.quickMod.combobox.sticky = $scope.quickMod.combobox.sticky == 'Unsticky'?'Sticky':'Unsticky';
 					}
 				}
@@ -143,25 +144,30 @@ controllers.controller('thread', ['$scope', '$location', '$timeout', '$anchorScr
 
 	$scope.submitQuickMod = function () {
 		var state = $scope.quickMod.action;
-		if (state == 'locked' || state == 'sticky') 
+		if (state == 'locked' || state == 'sticky')
 			$scope.toggleThreadState(state);
-		else 
+		else
 			location.href = '/forums/moveThread/' + $scope.threadID + '/';
 	};
 
-	$scope.saveQuickPost = function ($event) {
-		$event.preventDefault();
+	$scope.saveQuickPost = function () {
 		$scope.$emit('pageLoading');
-		ForumsService.savePost($.extend({ 'quickPost': true, 'threadID': $scope.threadID }, $scope.quickPost)).then(function (data) {
-			if (data.success) {
-				location.href = '/forums/thread/' + $scope.threadID + '/?p=' + data.postID + '##p' + data.postID;
-/*				$location.hash('p' + data.postID);
-				view = 'post';
-				viewVal = data.postID;
-				loadThread();*/
-			} else 
-				$scope.$emit('pageLoading');
-		});
+		if ($scope.quickPost.button == 'post') {
+			ForumsService.savePost($.extend({ 'quickPost': true, 'threadID': $scope.threadID }, $scope.quickPost)).then(function (data) {
+				if (data.success) {
+					location.href = '/forums/thread/' + $scope.threadID + '/?p=' + data.postID + '##p' + data.postID;
+	/*				$location.hash('p' + data.postID);
+					view = 'post';
+					viewVal = data.postID;
+					loadThread();*/
+				} else
+					$scope.$emit('pageLoading');
+			});
+		} else if ($scope.quickPost.button == 'advanced') {
+			$cookies.putObject('advancedPost', $scope.quickPost, { path: '/forums/', domain: '.gamersplane.local' });
+			location.href = '/forums/post/' + $scope.threadID + '/';
+			$scope.$emit('pageLoading');
+		}
 	};
 }]).directive('roll', ['ToolsService', function (ToolsService) {
 	return {
@@ -190,18 +196,18 @@ controllers.controller('thread', ['$scope', '$location', '$timeout', '$anchorScr
 
 			if (scope.roll.type == 'sweote') {
 				scope.roll.total = [];
-				if (scope.roll.counts.success != scope.roll.counts.failure) 
+				if (scope.roll.counts.success != scope.roll.counts.failure)
 					scope.roll.total.push(Math.abs(scope.roll.counts.success - scope.roll.counts.failure) + ' ' + (scope.roll.counts.success > scope.roll.counts.failure?'Success':'Failure'));
-				if (scope.roll.counts.advantage != scope.roll.counts.threat) 
+				if (scope.roll.counts.advantage != scope.roll.counts.threat)
 					scope.roll.total.push(Math.abs(scope.roll.counts.advantage - scope.roll.counts.threat) + ' ' + (scope.roll.counts.advantage > scope.roll.counts.threat?'Advantage':'Threat'));
-				if (scope.roll.counts.triumph) 
+				if (scope.roll.counts.triumph)
 					scope.roll.total.push(scope.roll.counts.triumph + ' Triumph');
-				if (scope.roll.counts.despair) 
+				if (scope.roll.counts.despair)
 					scope.roll.total.push(scope.roll.counts.despair + ' Despair');
 				scope.roll.total = scope.roll.total.join(', ');
 				counts = [];
-				for (key in scope.roll.counts) 
-					if (scope.roll.counts[key] != 0) 
+				for (key in scope.roll.counts)
+					if (scope.roll.counts[key] != 0)
 						counts.push(scope.roll.counts[key] + ' ' + scope.sweote.symbolText[key]);
 				scope.roll.counts = counts.join(', ');
 			}
@@ -210,7 +216,7 @@ controllers.controller('thread', ['$scope', '$location', '$timeout', '$anchorScr
 }]).filter('displayRolls', [function () {
 	return function (rolls) {
 		for (key in rolls) {
-			if (Array.isArray(rolls[key])) 
+			if (Array.isArray(rolls[key]))
 				rolls[key] = '[ ' + rolls[key].join(', ') + ' ]';
 		}
 		return '( ' + rolls.join(', ') + ' )';

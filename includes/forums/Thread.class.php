@@ -18,17 +18,17 @@
 		protected $poll = null;
 
 		protected $loaded = array();
-		
+
 		public function __construct($loadData = null) {
 			$this->poll = new ForumPoll();
 
-			if ($loadData == null) 
+			if ($loadData == null)
 				return true;
 
-			if (!isset($loadData['threadID'], $loadData['title'])) 
+			if (!isset($loadData['threadID'], $loadData['title']))
 				throw new Exception('Need more thread info');
-			foreach ($loadData as $key => $value) 
-				if (property_exists($this, $key)) 
+			foreach ($loadData as $key => $value)
+				if (property_exists($this, $key))
 					$this->$key = $loadData[$key];
 			$this->datePosted = $this->datePosted->sec;
 			$this->states['sticky'] = $loadData['sticky'];
@@ -38,27 +38,27 @@
 
 		public function toggleValue($key) {
 			if (in_array($key, array('sticky', 'locked', 'allowRolls', 'allowDraws'))) {
-				if ($key == 'sticky' || $key == 'locked') 
+				if ($key == 'sticky' || $key == 'locked')
 					$this->states[$key] = !$this->states[$key];
-				else 
+				else
 					$this->$key = !$this->$key;
 			}
 		}
 
 		public function __get($key) {
-			if (property_exists($this, $key)) 
+			if (property_exists($this, $key))
 				return $this->$key;
 		}
 
 		public function __set($key, $value) {
-			if (property_exists($this, $key)) 
+			if (property_exists($this, $key))
 				$this->$key = $value;
 		}
 
 		public function getStates($key = null) {
-			if (array_key_exists($key, $this->states)) 
+			if (array_key_exists($key, $this->states))
 				return $this->states[$key];
-			else 
+			else
 				return $this->states;
 		}
 
@@ -87,48 +87,48 @@
 		}
 
 		public function getLastPost($key = null) {
-			if (array_key_exists($key, $this->lastPost)) 
+			if (array_key_exists($key, $this->lastPost))
 				return $this->lastPost[$key];
-			else 
+			else
 				return $this->lastPost;
 		}
 
 		public function newPosts($markedRead) {
 			global $loggedIn;
-			if (!$loggedIn) 
+			if (!$loggedIn)
 				return false;
 
-			if ($this->lastPost->datePosted > $this->lastRead && $this->lastPost->datePosted > $markedRead) 
+			if ($this->lastPost->datePosted > $this->lastRead && $this->lastPost->datePosted > $markedRead)
 				return true;
-			else 
+			else
 				return false;
 		}
 
 		public function getPosts($page) {
-			if (sizeof($this->posts)) 
+			if (sizeof($this->posts))
 				return $this->posts;
 
 			global $loggedIn, $currentUser, $mysql, $mongo;
 
-			if ($page > ceil($this->postCount / PAGINATE_PER_PAGE)) 
+			if ($page > ceil($this->postCount / PAGINATE_PER_PAGE))
 				$page = ceil($this->postCount / PAGINATE_PER_PAGE);
 			$start = ($page - 1) * PAGINATE_PER_PAGE;
 			$posts = $mongo->posts->find(['threadID' => $this->threadID])->sort(['datePosted' => 1])->skip($start)->limit(PAGINATE_PER_PAGE);
 			// $posts = $mysql->query("SELECT p.postID, p.threadID, p.title, u.userID, u.username, um.metaValue avatarExt, u.lastActivity, p.message, p.postAs, p.datePosted, p.lastEdit, p.timesEdited FROM posts p LEFT JOIN users u ON p.authorID = u.userID LEFT JOIN usermeta um ON u.userID = um.userID AND um.metaKey = 'avatarExt' WHERE p.threadID = {$this->threadID} ORDER BY p.datePosted LIMIT {$start}, ".PAGINATE_PER_PAGE);
 			$getUsers = [];
-			foreach ($posts as $post) 
+			foreach ($posts as $post)
 				$getUsers[] = $post['authorID'];
 			$getUsers = array_unique($getUsers);
 			$rUsers = $mysql->query("SELECT u.userID, u.username, um.metaValue avatarExt, u.lastActivity FROM users u LEFT JOIN usermeta um ON u.userID = um.userID AND um.metaKey = 'avatarExt' WHERE u.userID IN (".implode(',', $getUsers).")");
 			$users = [];
-			foreach ($rUsers as $user) 
+			foreach ($rUsers as $user)
 				$users[$user['userID']] = [
 					'userID' => (int) $user['userID'],
 					'username' => $user['username'],
 					'avatarExt' => $user['avatarExt'],
 					'lastActivity' => strtotime($user['lastActivity'])
 				];
-			foreach ($posts as $post) 
+			foreach ($posts as $post)
 				$this->posts[$post['postID']] = new Post(array_merge($post, ['author' => $users[$post['authorID']]]));
 
 			return $this->posts;
@@ -136,14 +136,14 @@
 
 		public function getPost($postID, $postData = null) {
 			$postID = (int) $postID;
-			if (sizeof($this->posts) && $this->posts[$postID]) 
+			if (sizeof($this->posts) && $this->posts[$postID])
 				return $this->posts[$postID];
 
 			global $loggedIn, $currentUser, $mysql, $mongo;
 
-			if ($postData == null) 
+			if ($postData == null)
 				$post = $mongo->posts->findOne(['postID' => $postID]);
-			else 
+			else
 				$post = $postData;
 			$rUser = $mysql->query("SELECT u.userID, u.username, um.metaValue avatarExt, u.lastActivity FROM users u LEFT JOIN usermeta um ON u.userID = um.userID AND um.metaKey = 'avatarExt' WHERE u.userID = {$post['authorID']} LIMIT 1");
 			$author = $rUser->fetch();
@@ -159,7 +159,7 @@
 		}
 
 		public function getPoll() {
-			if (in_array('poll', $this->loaded)) 
+			if (in_array('poll', $this->loaded))
 				return true;
 			try {
 				$this->poll = new ForumPoll($this->threadID);

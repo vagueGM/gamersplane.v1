@@ -1,0 +1,10 @@
+<div class="headers">
+	<div class="reason">Reason</div>
+	<div class="roll"># of Dice</div>
+	<div class="visibility">Visibility</div>
+</div>
+<div>
+	<div class="reason"><input type="text" ng-model="data.reason" maxlength="100" class="borderBox"></div>
+	<div class="roll"><input type="text" ng-model="data.rolls" maxlength="2" class="borderBox"></div>
+	<div class="visibility"><combobox data="combobox.visibility" value="data.visibility" returnAs="value" select></combobox></div>
+</div>

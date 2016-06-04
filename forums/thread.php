@@ -1,7 +1,7 @@
 <?
 	require_once(FILEROOT.'/javascript/markItUp/markitup.bbcode-parser.php');
 	addPackage('forum');
-	
+
 	$threadID = intval($pathOptions[1]);
 	$threadManager = new ThreadManager($threadID);
 
@@ -14,16 +14,16 @@
 		$system = $game['system'];
 		$isGM = false;
 		foreach ($game['players'] as $player) {
-			if ($player['user']['userID'] == $currentUser->userID) 
-				if ($player['isGM']) 
+			if ($player['user']['userID'] == $currentUser->userID)
+				if ($player['isGM'])
 					$isGM = true;
-			if ($player['isGM']) 
+			if ($player['isGM'])
 				$gms[] = $player['user']['userID'];
 		}
 
 		require_once(FILEROOT."/includes/packages/{$system}Character.package.php");
 		$charClass = Systems::systemClassName($system).'Character';
-	} else 
+	} else
 		$fixedGameMenu = false;
 
 	$dispatchInfo['title'] = $threadManager->getThreadProperty('title').' | '.$dispatchInfo['title'];
@@ -34,16 +34,14 @@
 		<div hb-margined>
 			<div id="threadMenu" class="clearfix">
 				<div class="leftCol">
-					<div id="breadcrumbs">
-						<a ng-repeat="hForum in thread.forumHeritage" href="/forums/{{hForum.forumID}}/" ng-bind-html="hForum.title"></a>
-					</div>
+					<breadcrumbs forums="thread.forumHeritage"></breadcrumbs>
 					<a href="/forums/{{thread.forumID}}/">Back to the forums</a>
 				</div>
 				<div class="rightCol alignRight">
 					<p ng-if="loggedIn && thread.subscribed != 'f'" class="threadSub"><a id="forumSub" ng-click="toggleSubscribe()">{{thread.subscribed == 't'?'Unsubscribe from':'Subscribe to'}} thread</a></p>
 					<div id="threadOptions" ng-if="thread.permissions.moderate" method="post">
-						<button type="submit" name="sticky" title="{{thread.sticky?'Uns':'S'}}ticky Thread" alt="{{thread.sticky?'Uns':'S'}}ticky Thread" ng-click="toggleThreadState('sticky')" ng-class="thread.sticky?'unsticky':'sticky'"></button>
-						<button type="submit" name="lock" title="{{thread.locked?'Unl':'L'}}ock Thread" alt="{{thread.locked?'Unl':'L'}}ock Thread" ng-click="toggleThreadState('locked')" ng-class="thread.locked?'unlock':'lock'"></button>
+						<button type="submit" name="sticky" title="{{thread.options.sticky?'Uns':'S'}}ticky Thread" alt="{{thread.options.sticky?'Uns':'S'}}ticky Thread" ng-click="toggleThreadState('sticky')" ng-class="thread.options.sticky?'unsticky':'sticky'"></button>
+						<button type="submit" name="lock" title="{{thread.options.locked?'Unl':'L'}}ock Thread" alt="{{thread.options.locked?'Unl':'L'}}ock Thread" ng-click="toggleThreadState('locked')" ng-class="thread.options.locked?'unlock':'lock'"></button>
 					</div>
 					<a ng-if="thread.permissions.write" href="/forums/post/<?=$threadID?>/" class="fancyButton" skew-element>Reply</a>
 				</div>
@@ -111,13 +109,13 @@
 			</div>
 			<div class="clearfix"><paginate num-items="pagination.numPosts" items-per-page="pagination.itemsPerPage" current="pagination.current" change-func="changePage"></paginate></div>
 			<div ng-if="thread.permissions.moderate" class="clearfix"><form class="quickMod" ng-submit="submitQuickMod()">
-				Quick Mod Actions: 
+				Quick Mod Actions:
 				<combobox id="quickMod" data="quickMod.combobox" value="quickMod.action" select returnAs="value"></combobox>
-				<button type="sfubmit" name="go">Go</button>
+				<button type="submit" name="go">Go</button>
 			</form></div>
 		</div>
 
-		<form ng-if="loggedIn && ((thread.permissions.write && !thread.locked) || thread.permissions.moderate)" id="quickReply" method="post" action="/forums/post/<?=$threadID?>/">
+		<form ng-if="loggedIn && ((thread.permissions.write && !thread.options.locked) || thread.permissions.moderate)" id="quickReply" ng-submit="saveQuickPost()">
 			<h2 class="headerbar hbDark" skew-element>Quick Reply</h2>
 			<div hb-margined>
 				<div ng-if="thread.characters != null" id="charSelect" class="tr">
@@ -127,11 +125,11 @@
 				<textarea ng-model="quickPost.message" mark-it-up></textarea>
 			</div>
 			<div id="submitDiv" class="alignCenter">
-				<button type="submit" name="post" ng-click="saveQuickPost($event)" class="fancyButton" skew-element>Post</button>
-				<button type="submit" name="advanced" class="fancyButton" ng-click="advancedPost" skew-element>Advanced</button>
+				<button ng-click="quickPost.button = 'post'" class="fancyButton" skew-element>Post</button>
+				<button ng-click="quickPost.button = 'advanced'" class="fancyButton" skew-element>Advanced</button>
 			</div>
 		</form>
-		<h2 ng-if="loggedIn && thread.locked && !thread.permissions.moderate" class="alignCenter">Thread locked</h2>
+		<h2 ng-if="loggedIn && thread.options.locked && !thread.permissions.moderate" class="alignCenter">Thread locked</h2>
 		<h2 ng-if="loggedIn && !thread.permissions.write && !thread.permissions.moderate" class="alignCenter">You do not have permission to post in this thread.</h2>
 		<h2 ng-if="!loggedIn" class="alignCenter"><a href="/login/" colorbox>Login</a> or <a href="/register/">sign up to join this conversation!</a>
 <?	require_once(FILEROOT.'/footer.php'); ?>
