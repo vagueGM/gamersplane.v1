@@ -23,10 +23,7 @@ controllers.controller('forum', ['$scope', 'Range', 'CurrentUser', 'ForumsServic
 			$scope.currentForum = $scope.forums[$scope.forumID];
 			$scope.threads = data.threads?data.threads:[];
 			forumSet = [];
-			$scope.breadcrumbs = [];
-			$scope.currentForum.heritage.forEach(function (forumID) {
-				$scope.breadcrumbs.push({ forumID: forumID, title: $scope.forums[forumID].title });
-			});
+			$scope.breadcrumbs = $scope.currentForum.heritage;
 			for (key in $scope.currentForum.children) {
 				childID = $scope.currentForum.children[key];
 				if ($scope.forums[childID].type == 'c') {

@@ -285,8 +285,14 @@
 
 		public function getHeritage() {
 			$heritage = [];
-			foreach ($this->forums[$this->currentForum]->heritage as $hForumID)
-				$heritage[] = ['forumID' => $hForumID, 'title' => $this->forums[$hForumID]->title];
+			if (isset($this->forums[$this->currentForum])) {
+				foreach ($this->forums[$this->currentForum]->heritage as $hForumID) {
+					$heritage[] = [
+						'forumID' => $hForumID,
+						'title' => $this->forums[$hForumID]->title
+					];
+				}
+			}
 			return $heritage;
 		}
 

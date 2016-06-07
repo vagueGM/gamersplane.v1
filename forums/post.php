@@ -175,10 +175,10 @@
 				</div></div>
 				<h2 class="headerbar hbDark" skew-element>{{options.title}}</h2>
 				<div ng-if="options.state == 'options'" id="threadOptions" class="section_options" hb-margined="dark">
-					<p ng-if="thread.permissions.moderate"><pretty-checkbox checkbox="post.options.sticky"></pretty-checkbox> Sticky thread</p>
-					<p ng-if="thread.permissions.moderate"><pretty-checkbox checkbox="post.options.locked"></pretty-checkbox> Lock thread</p>
-					<p ng-if="thread.permissions.addRolls"><pretty-checkbox checkbox="thread.options.allowRolls"></pretty-checkbox> Allow adding rolls to posts (if this box is unchecked, any rolls added to this thread will be ignored)</p>
-					<p ng-if="thread.permissions.addDraws"><pretty-checkbox checkbox="thread.options.allowDraws"></pretty-checkbox> Allow adding deck draws to posts (if this box is unchecked, any draws added to this thread will be ignored)</p>
+					<p ng-if="thread.permissions.moderate"><label class="pointer"><pretty-checkbox checkbox="thread.options.sticky"></pretty-checkbox> Sticky thread</label></p>
+					<p ng-if="thread.permissions.moderate"><label class="pointer"><pretty-checkbox checkbox="thread.options.locked"></pretty-checkbox> Lock thread</label></p>
+					<p ng-if="thread.permissions.addRolls"><label class="pointer"><pretty-checkbox checkbox="thread.options.allowRolls"></pretty-checkbox> Allow adding rolls to posts (if this box is unchecked, any rolls added to this thread will be ignored)</label></p>
+					<p ng-if="thread.permissions.addDraws"><label class="pointer"><pretty-checkbox checkbox="thread.options.allowDraws"></pretty-checkbox> Allow adding deck draws to posts (if this box is unchecked, any draws added to this thread will be ignored)</label></p>
 				</div>
 				<div ng-if="options.state == 'poll'" id="poll" class="section_poll" hb-margined="dark">
 					<div ng-if="state == 'edit'" class="clearfix">

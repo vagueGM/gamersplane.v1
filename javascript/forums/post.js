@@ -134,6 +134,9 @@ controllers.controller('post', ['$scope', '$location', '$timeout', '$cookies', '
 
 		var postData = {};
 		postData.type = $scope.pageType;
+		if (postData.type == 'newThread') {
+			postData.forumID = $scope.forumID;
+		}
 		$.extend(postData, $scope.post);
 		if ($scope.firstPost) {
 			postData.options = $scope.thread.options;

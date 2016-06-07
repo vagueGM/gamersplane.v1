@@ -428,13 +428,15 @@
 		public function savePost() {
 			global $currentUser, $mysql, $mongo;
 
+			var_dump($_POST); exit;
+
 			if ($_POST['threadID']) {
 				$threadID = intval($_POST['threadID']);
 				$threadManager = new ThreadManager($threadID);
 				if (!$threadManager->getPermissions('write') || ($locked && $threadManager->getPermissions('moderate')))
 					displayJSON(['failed' => true, 'noPermission' => true]);
 			} else
-				$forumManager = new ForumManager((int) $_POST['new']);
+				$forumManager = new ForumManager((int) $_POST['forumID']);
 
 			if ($_POST['edit']) {
 				$postID = intval($_POST['edit']);
@@ -445,10 +447,11 @@
 			$post->setTitle($_POST['title']);
 			$post->setPostAs($_POST['postAs']);
 			$message = $_POST['message'];
-			if (isset($threadID))
+			if (isset($threadID)) {
 				$gameID = $threadManager->getForumProperty('gameID');
-			elseif (isset($_POST['new']))
+			} elseif ($_POST['type'] == 'newThread') {
 				$gameID = $forumManager->getForumProperty((int) $_POST['new'], 'gameID');
+			}
 
 			if (preg_match_all('/\[note="?(\w[\w +;,]+?)"?](.*?)\[\/note\]/ms', $message, $matches, PREG_SET_ORDER)) {
 				$allUsers = array();

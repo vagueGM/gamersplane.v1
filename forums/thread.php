@@ -5,26 +5,13 @@
 	$threadID = intval($pathOptions[1]);
 	$threadManager = new ThreadManager($threadID);
 
-	$gameID = false;
-	$isGM = false;
-	$gms = array();
 	if ($threadManager->isGameForum()) {
 		$gameID = (int) $threadManager->getForumProperty('gameID');
-		$game = $mongo->games->findOne(array('gameID' => $gameID), array('system' => true, 'players' => true));
-		$system = $game['system'];
-		$isGM = false;
-		foreach ($game['players'] as $player) {
-			if ($player['user']['userID'] == $currentUser->userID)
-				if ($player['isGM'])
-					$isGM = true;
-			if ($player['isGM'])
-				$gms[] = $player['user']['userID'];
-		}
-
-		require_once(FILEROOT."/includes/packages/{$system}Character.package.php");
-		$charClass = Systems::systemClassName($system).'Character';
-	} else
+		$fixedGameMenu = true;
+	} else {
+		$gameID = false;
 		$fixedGameMenu = false;
+	}
 
 	$dispatchInfo['title'] = $threadManager->getThreadProperty('title').' | '.$dispatchInfo['title'];
 	$dispatchInfo['description'] = $threadManager->getKeyPost()->message;
