@@ -1,9 +1,10 @@
 $.cssHooks.backgroundColor = {
     get: function(elem) {
+		var bg;
         if (elem.currentStyle)
-            var bg = elem.currentStyle["backgroundColor"];
+            bg = elem.currentStyle.backgroundColor;
         else if (window.getComputedStyle)
-            var bg = document.defaultView.getComputedStyle(elem,
+            bg = document.defaultView.getComputedStyle(elem,
                 null).getPropertyValue("background-color");
         if (bg.search("rgb") == -1)
             return bg;
@@ -16,7 +17,7 @@ $.cssHooks.backgroundColor = {
             return hexString.toUpperCase();
         }
     }
-}
+};
 
 $(function() {
 	$('select').prettySelect();
@@ -35,7 +36,7 @@ $(function() {
 		$('form.ajaxForm_refreshParent').append('<input type="hidden" name="modal" value="1">').ajaxForm({
 			dataType: 'json',
 			success: function (data) {
-				if (data.success == true) {
+				if (data.success === true) {
 					parent.window.location.reload();
 				}
 			}
@@ -43,7 +44,7 @@ $(function() {
 		$('form.ajaxForm_closeCB').append('<input type="hidden" name="modal" value="1">').ajaxForm({
 			dataType: 'json',
 			success: function (data) {
-				if (data.success == true) {
+				if (data.success === true) {
 					parent.$.colorbox.close();
 				}
 			}
@@ -84,7 +85,7 @@ $(function() {
 		});
 
 		var fm_currentlyOpen = '';
-		$fixedMenu.click(function (e) { e.stopPropagation(); })
+		$fixedMenu.click(function (e) { e.stopPropagation(); });
 		$fixedMenu.find('li > a').filter(function () {
 			return $(this).siblings('.submenu, .subwindow').length;
 		}).click(function (e) {
@@ -104,7 +105,7 @@ $(function() {
 		$('#fm_roll').click(function (e) {
 			e.stopPropagation();
 			var dice = $('#fm_customDiceRoll input').val();
-			if (dice != '') fm_rollDice(dice);
+			if (dice !== '') fm_rollDice(dice);
 
 			e.preventDefault();
 		});
@@ -112,7 +113,7 @@ $(function() {
 		$('#fm_diceRoller input').keypress(function (e) {
 			if (e.which == 13) {
 				var dice = $(this).val();
-				if (dice != '') fm_rollDice(dice);
+				if (dice !== '') fm_rollDice(dice);
 
 				e.preventDefault();
 			}
@@ -130,7 +131,7 @@ $(function() {
 	$('.cbf_basic').append('<input type="hidden" name="modal" value="1">').ajaxForm({
 		beforeSubmit: function () {
 			$('.cbf_basic .required').each(function () {
-				if ($(this).val().length == 0) return false;
+				if ($(this).val().length === 0) return false;
 			});
 
 			return true;
@@ -153,8 +154,11 @@ $(function() {
 
 
 	/* Individual Pages */
-	if (!$('body').hasClass('modal')) var curPage = $('#content > div > div').attr('id').substring(5);
-	else var curPage = $('body > div').attr('id').substring(5);
+	var curPage;
+	if (!$('body').hasClass('modal'))
+		curPage = $('#content > div > div').attr('id').substring(5);
+	else
+		curPage = $('body > div').attr('id').substring(5);
 });
 
 var app = angular.module('gamersplane', ['controllers', 'ngCookies', 'ngSanitize', 'ngAnimate', 'ngFileUpload', 'angularMoment']);
@@ -173,19 +177,19 @@ app.config(['$httpProvider', function ($httpProvider) {
 
 	factory.get = function () {
 		return userData;
-	}
+	};
 
 	factory.getLFG = function () {
 		return $http.post(API_HOST + '/users/getLFG/').then(function (data) {
 			return data.data.lfg;
 		});
-	}
+	};
 
 	factory.saveLFG = function (lfg) {
 		return $http.post(API_HOST + '/users/saveLFG/', { 'lfg': lfg }).then(function (data) {
 			return data.data.lfg;
 		});
-	}
+	};
 
 	return factory;
 }]).service('UsersService', ['$http', 'Upload', function ($http, Upload) {
@@ -243,7 +247,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 			data.systems.forEach(function (val) {
 				self.systems[val.shortName] = val.fullName;
 			});
-		})
+		});
 	};
 	this.get = function (params) {
 		if (typeof params != 'object' || Array.isArray(params))
@@ -255,7 +259,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 	};
 	this.save = function (systemData) {
 		return $http.post(API_HOST + '/systems/save/', { data: systemData }).then(function (data) { return data.data; });
-	}
+	};
 }]).service('ToolsService', ['$http', function ($http) {
 	this.deckTypes = [
 		{
@@ -286,7 +290,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 			data.types.forEach(function (val) {
 				self.deckTypes[val._id] = val;
 			});
-		})
+		});
 	};
 	this.getDeckTypes = function () {
 		return $http.post(API_HOST + '/tools/getDeckTypes/').then(function (data) { return data.data; });
@@ -344,7 +348,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 		return $http.post(API_HOST + '/forums/getThreads/', { forumID: forumID, page: page }).then(function (data) { return data.data; });
 	};
 	this.getThread = function (threadID, view, viewVal) {
-		params = { threadID: threadID, view: view, viewVal: viewVal }
+		params = { threadID: threadID, view: view, viewVal: viewVal };
 		if (view == 'newPost')
 			delete params.viewVal;
 		return $http.post(API_HOST + '/forums/getThread/', params).then(function (data) { return data.data; });
@@ -376,7 +380,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 		return $http.post(API_HOST + '/forums/pollVote/', { 'postID': postID, 'deckID': deckID, 'card': card }).then(function (data) {
 			return data.data;
 		});
-	}
+	};
 	this.toggleCardVis = function (postID, deckID, card) {
 		return $http.post(API_HOST + '/forums/toggleCardVis/', { 'postID': postID, 'deckID': deckID, 'card': card }).then(function (data) {
 			return data.data;
@@ -395,7 +399,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 	};
 	this.getPost = function (postID, basic) {
 		params = { 'postID': postID, 'basic': false };
-		if (basic == true)
+		if (basic === true)
 			params.basic = true;
 		return $http.post(API_HOST + '/forums/getPost/', params).then(function (data) { return data.data; });
 	};
@@ -437,13 +441,13 @@ app.config(['$httpProvider', function ($httpProvider) {
 		var deferred = $q.defer();
 		$http.post(API_HOST + '/faqs/delete/', { 'id': id }).success(function (data) { deferred.resolve(data); });
 		return deferred.promise;
-	}
+	};
 }]).service('GamesService', ['$http', function ($http) {
 	this.getGames = function (params) {
 		return $http.post(API_HOST + '/games/getGames/', params).then(function (data) {
 			if (data.data.success)
 				return data.data.games;
-		})
+		});
 	};
 	this.getDetails = function (gameID) {
 		return $http.post(API_HOST + '/games/details/', { 'gameID': gameID }).then(function (data) { return data.data; });
@@ -491,11 +495,11 @@ app.config(['$httpProvider', function ($httpProvider) {
 			else
 				return [];
 		});
-	}
+	};
 }]).service('initializeVars', [function () {
 	this.setup = function (scope) {
 		return scope;
-	}
+	};
 }]).service('CharactersService', ['$http', '$q', function ($http, $q) {
 	this.getMy = function (params) {
 		return $http.post(API_HOST + '/characters/my/', params).then(function (data) { return data.data; });
@@ -527,7 +531,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 	};
 	this.toggleFavorite = function (characterID) {
 		return $http.post(API_HOST + '/characters/toggleFavorite/', { 'characterID': characterID }).then(function (data) { return data.data; });
-	}
+	};
 	this.load = function (characterID, pr) {
 		if (typeof pr != 'boolean')
 			pr = false;
@@ -537,14 +541,14 @@ app.config(['$httpProvider', function ($httpProvider) {
 		return $http.post(API_HOST + '/characters/save/', { 'characterID': characterID, 'character': character }).then(function (data) { return data.data; });
 	};
 	this.loadBlanks = function (character, blanks) {
-		if (typeof blanks == 'undefined' || Object.keys(blanks).length == 0)
+		if (typeof blanks == 'undefined' || Object.keys(blanks).length === 0)
 			return;
-		for (key in blanks) {
+		for (var key in blanks) {
 			if (key.indexOf('.') < 0)
 				bArray = character[key];
 			else
 				bArray = character[key.split('.')[0]][key.split('.')[1]];
-			if (typeof bArray != 'undefined' && Object.keys(bArray).length == 0)
+			if (typeof bArray != 'undefined' && Object.keys(bArray).length === 0)
 				bArray.push(copyObject(blanks[key]));
 		}
 	};
@@ -552,13 +556,13 @@ app.config(['$httpProvider', function ($httpProvider) {
 }]).service('Range', function () {
 	this.get = function (from, to, incBy) {
 		incBy = parseInt(incBy);
-		if (Math.round(incBy) != incBy || incBy == 0)
+		if (Math.round(incBy) != incBy || incBy === 0)
 			incBy = 1;
 		range = [];
 		for (count = from; count <= to; count += incBy)
 			range.push(count);
 		return range;
-	}
+	};
 }).directive('skewElement', function () {
 	return {
 		restrict: 'A',
@@ -567,9 +571,9 @@ app.config(['$httpProvider', function ($httpProvider) {
 			if ($element.children('div.skewedDiv').length)
 				return;
 			var skewDeg = 0;
-			if (attrs.skewElement != '')
+			if (attrs.skewElement !== '')
 				skewDeg = parseInt(attrs.skewElement);
-			if (skewDeg == 0)
+			if (skewDeg === 0)
 				skewDeg = -30;
 			$skewDiv = $element.wrapInner('<div class="skewedDiv"></div>').children('div');
 			skewedOut = Math.tan(Math.abs(skewDeg) * Math.PI / 180) * $element.outerHeight() / 2;
@@ -605,7 +609,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 				});
 			}
 		}
-	}
+	};
 }).directive('trapezoidify', ['$timeout', function ($timeout) {
 	return {
 		restrict: 'A',
@@ -636,7 +640,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 					$element.children('.leftWing, .rightWing').css('border-top-width', height + 'px');
 			});
 		}
-	}
+	};
 }]).directive('hbMargined', ['$timeout', function ($timeout) {
 	return {
 		restrict: 'A',
@@ -676,7 +680,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 				$.colorbox({ href: attrs.href + '?modal=1' });
 			});
 		}
-	}
+	};
 }]).directive('markItUp', [function () {
 	return {
 		restrict: 'A',
@@ -717,9 +721,9 @@ app.config(['$httpProvider', function ($httpProvider) {
 					scope.pages.push(count);
 				if (typeof scope.changeFunc == 'function')
 					$timeout(scope.changeFunc);
-			}
+			};
 		}
-	}
+	};
 }]).directive('combobox', ['$filter', '$timeout', function ($filter, $timeout) {
 	return {
 		restrict: 'E',
@@ -755,7 +759,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 					$timeout.cancel(skillSearchTimeout);
 					if (scope.search.length >= 3)
 						skillSearchTimeout = $timeout(function () {
-							var data = scope.autocomplete(scope.search)
+							var data = scope.autocomplete(scope.search);
 							if (isUndefined(scope.data))
 								scope.data = [];
 							if (data && typeof data.then == 'function')
@@ -783,7 +787,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 
 			scope.filterData = function () {
 				return $filter('filter')(scope.options, (!scope.bypassFilter || '') && { 'display': scope.search });
-			}
+			};
 			scope.$watch(function () { return scope.value; }, function (newVal, oldVal) {
 				if (newVal) {
 					if (scope.returnAs == 'value')
@@ -796,14 +800,14 @@ app.config(['$httpProvider', function ($httpProvider) {
 				if (val) {
 					hVal = null;
 					if (scope.returnAs == 'value') {
-						for (key in scope.options) {
+						for (var key in scope.options) {
 							if (scope.options[key].value == val) {
 								hVal = scope.options[key];
 								break;
 							}
 						}
 					} else {
-						for (key in scope.options) {
+						for (var key in scope.options) {
 							if (scope.options[key].value == val.value) {
 								hVal = scope.options[key];
 								break;
@@ -819,27 +823,27 @@ app.config(['$httpProvider', function ($httpProvider) {
 			});
 			scope.$watch(function () { return scope.data; }, function (newVal, oldVal) {
 				scope.options = [];
-				if (isUndefined(scope.data) || (scope.data instanceof Array && scope.data.length == 0))
+				if (isUndefined(scope.data) || (scope.data instanceof Array && scope.data.length === 0))
 					return;
 				if (scope.select)
 					scope.search = '';
 				$resultsWrapper.css('width', '');
 				optsIsArray = Array.isArray(scope.data);
-				for (key in scope.data) {
+				for (var key in scope.data) {
 					val = scope.data[key];
 					if (typeof val != 'object') {
 						val = { 'display': val };
 						val.value = optsIsArray?val.display:key;
-					} else if (!isUndefined(val.display) && val.display.length && (isUndefined(val.value) || val.value.length == 0))
+					} else if (!isUndefined(val.display) && val.display.length && (isUndefined(val.value) || val.value.length === 0))
 						val.value = val.display;
-					else if (isUndefined(val.display) || val.display.length == 0)
+					else if (isUndefined(val.display) || val.display.length === 0)
 						continue;
 
 					val = {
 						'value': decodeHTML(val.value),
 						'display': decodeHTML(val.display),
 						'class': !isUndefined(val.class)?val.class:[]
-					}
+					};
 					scope.options.push(val);
 				}
 				scope.value = typeof scope.value == 'object' && !isUndefined(scope.value.value) && !isUndefined(scope.value.display)?scope.value:{ 'value': null, 'display': '' };
@@ -848,7 +852,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 					scope.search = scope.value.display;
 				else
 					scope.value = { 'value': null, 'display': '' };
-				if (scope.select && scope.options.length && (isUndefined(scope.value) || isUndefined(scope.value.value) || isUndefined(scope.value.display) || (scope.value.value == null && scope.value.display == '')) && !scope.hasFocus) {
+				if (scope.select && scope.options.length && (isUndefined(scope.value) || isUndefined(scope.value.value) || isUndefined(scope.value.display) || (scope.value.value === null && scope.value.display === '')) && !scope.hasFocus) {
 					scope.value = copyObject(scope.options[0]);
 					scope.search = scope.value.display;
 				} else if (scope.select) {
@@ -896,14 +900,14 @@ app.config(['$httpProvider', function ($httpProvider) {
 
 			scope.$watch(function () { return scope.hasFocus; }, function (newVal, oldVal) {
 				if (!newVal) {
-					if (!isUndefined(scope.search) && scope.search.length != '') {
+					if (!isUndefined(scope.search) && scope.search.length !== '') {
 						filterResults = $filter('filter')(scope.options, { 'display': scope.search });
 						if (filterResults.length == 1 && filterResults[0].display.toLowerCase() == scope.search.toLowerCase()) {
 							scope.search = filterResults[0].display;
 							scope.value = filterResults[0];
 						} else if (scope.select) {
 							noResults = true;
-							for (key in filterResults) {
+							for (var key in filterResults) {
 								if (filterResults[key].display.toLowerCase() == scope.search.toLowerCase()) {
 									noResults = false;
 									scope.search = filterResults[key].display;
@@ -921,7 +925,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 								}
 							}
 						} else
-							scope.value = { 'value': null, 'display': scope.search }
+							scope.value = { 'value': null, 'display': scope.search };
 					}
 				}
 			});
@@ -974,9 +978,9 @@ app.config(['$httpProvider', function ($httpProvider) {
 			};
 			scope.setSelected = function (index) {
 				scope.curSelected = index;
-			}
+			};
 		}
-	}
+	};
 }]).directive('prettyCheckbox', ['$timeout', function ($timeout) {
 	return {
 		restrict: 'E',
@@ -991,7 +995,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 			$timeout(function () {
 				if ((scope.checkbox instanceof Array && scope.checkbox.indexOf(scope.cbValue) != -1) || !(scope.checkbox instanceof Array) && scope.checkbox)
 					scope.cbm = true;
-				eleID = typeof attrs['eleid'] == 'string' && attrs['eleid']?attrs['eleid']:null;
+				eleID = typeof attrs.eleid == 'string' && attrs.eleid?attrs.eleid:null;
 				$label = $(element).closest('label');
 				if (!$label.length && eleID)
 					$label = $('label[for=' + eleID + ']');
@@ -1035,7 +1039,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 					scope.cbm = scope.checkbox?true:false;
 			});
 		}
-	}
+	};
 }]).directive('prettyRadio', [function () {
 	return {
 		restrict: 'E',
@@ -1045,15 +1049,13 @@ app.config(['$httpProvider', function ($httpProvider) {
 			'rValue': '=rValue'
 		},
 		link: function (scope, element, attrs) {
-//			scope.$watch(function () { return scope.radio; }, function () { console.log (scope.radio); });
-
-			scope.inputID = typeof attrs['eleid'] == 'string'?attrs['eleid']:'';
+			scope.inputID = typeof attrs.eleid == 'string'?attrs.eleid:'';
 
 			var label = null, wrapperLabel = false;
 			label = $(element).closest('label');
-			if (!label.length && typeof attrs['eleid'] == 'string' && attrs['eleid']) {
+			if (!label.length && typeof attrs.eleid == 'string' && attrs.eleid) {
 //				element.attr('id', attrs['eleid']);
-				label = $('label[for=' + attrs['eleid'] + ']');
+				label = $('label[for=' + attrs.eleid + ']');
 			} else if (label.length)
 				wrapperLabel = true;
 			if (label.length)
@@ -1067,9 +1069,9 @@ app.config(['$httpProvider', function ($httpProvider) {
 
 			scope.setRadio = function () {
 				scope.radio = scope.rValue;
-			}
+			};
 		}
-	}
+	};
 }]).directive('equalizeColumns', ['$timeout', function ($timeout) {
 	return {
 		restrict: 'A',
@@ -1082,23 +1084,23 @@ app.config(['$httpProvider', function ($httpProvider) {
 				}).height(tallest);
 			}, 1);
 		}
-	}
+	};
 }]).directive('ngPlaceholder', [function () {
 	return {
 		restrict: 'A',
 		scope: {},
 		link: function (scope, element, attrs) {
-			var placeholder = attrs['ngPlaceholder'];
+			var placeholder = attrs.ngPlaceholder;
 			if (typeof placeholder == 'string' && placeholder.length) {
 				element.blur(function () {
 					var $input = $(this);
-					if ($input.val() == '' || $input.val() == placeholder)
+					if ($input.val() === '' || $input.val() == placeholder)
 						$input.addClass('default');
-					$input.val(function () { return placeholder == ''?placeholder:$input.val(); }).focus(function () {
-						if ($input.val() == placeholder || $input.val() == '')
+					$input.val(function () { return placeholder === ''?placeholder:$input.val(); }).focus(function () {
+						if ($input.val() == placeholder || $input.val() === '')
 							$input.val('').removeClass('default');
 					}).blur(function () {
-						if ($input.val() == '')
+						if ($input.val() === '')
 							$input.val(placeholder).addClass('default');
 					}).change(function () {
 						if ($input.val() != placeholder)
@@ -1109,7 +1111,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 				}).blur();
 			}
 		}
-	}
+	};
 }]).directive('loadingSpinner', ['$timeout', function ($timeout) {
 	return {
 		restrict: 'E',
@@ -1139,7 +1141,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 					} else
 						running = false;
 				}, fadePauseB);
-			}
+			};
 			scope.fadeOut = function () {
 				$timeout(function () {
 					if (!scope.pause) {
@@ -1148,7 +1150,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 					} else
 						running = false;
 				}, fadePauseT);
-			}
+			};
 			if (!scope.pause)
 				scope.fadeIn();
 			scope.$watch(function () { return scope.pause; }, function () {
@@ -1156,7 +1158,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 					scope.fadeIn();
 			});
 		}
-	}
+	};
 }]).directive('avatar', ['CharactersService', function (CharactersService) {
 	return {
 		restrict: 'E',
@@ -1205,7 +1207,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 				return;
 			else {
 				monthsDiff = now.diff(lastActivity, 'months');
-				if (monthsDiff == 0)
+				if (monthsDiff === 0)
 					scope.diffStr = 'Inactive for ' + daysDiff + ' days';
 				else if (monthsDiff < 12)
 					scope.diffStr = 'Inactive for ' + monthsDiff + ' month' + (monthsDiff > 1?'s':'');
@@ -1213,7 +1215,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 					scope.diffStr = 'Inactive forever!';
 			}
 		}
-	}
+	};
 }]).directive('card', ['ToolsService', function(ToolsService) {
 	return {
 		restrict: 'E',
@@ -1222,13 +1224,13 @@ app.config(['$httpProvider', function ($httpProvider) {
 		link: function (scope, element, attrs) {
 			var cardNum = parseInt(attrs.cardNum),
 				deckType = attrs.deckType,
-				size = attrs['size'],
+				size = attrs.size,
 				deckInfo = {},
 				suits = ['hearts', 'spades', 'diamonds', 'clubs'];
 
 			if (['', 'mid', 'mini'].indexOf(size) == -1)
 				size = '';
-			for (key in ToolsService.deckTypes)
+			for (var key in ToolsService.deckTypes)
 				if (ToolsService.deckTypes[key].short == deckType)
 					deckInfo = ToolsService.deckTypes[key];
 			scope.deckImg = '/images/tools/cards/' + deckInfo.image + '.png';
@@ -1256,7 +1258,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 					scope.classes.card.push('redJoker');
 			}
 		}
-	}
+	};
 }]).directive('breadcrumbs', [function() {
 	return {
 		restrict: 'E',
@@ -1278,12 +1280,12 @@ app.config(['$httpProvider', function ($httpProvider) {
 		if (typeof text != 'string')
 			text = '';
 		return $sce.trustAsHtml(text);
-	}
+	};
 }]).filter('paginateItems', [function () {
 	return function (input, limit, skip) {
 		output = [];
 		count = -1;
-		for (key in input) {
+		for (var key in input) {
 			count++;
 			if (count < skip)
 				continue;
@@ -1292,14 +1294,14 @@ app.config(['$httpProvider', function ($httpProvider) {
 			output.push(input[key]);
 		}
 		return output;
-	}
+	};
 }]).filter('intersect', [function () {
 	return function (input, field, compareTo) {
-		if (compareTo.length == 0)
+		if (compareTo.length === 0)
 			return input;
 		output = [];
-		for (key in input) {
-			for (iKey in compareTo) {
+		for (var key in input) {
+			for (var iKey in compareTo) {
 				if (input[key][field].indexOf(compareTo[iKey]) >= 0) {
 					output.push(input[key]);
 					break;
@@ -1307,7 +1309,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 			}
 		}
 		return output;
-	}
+	};
 }]).filter('convertTZ', [function () {
 	return function (dtString, parseString, displayString) {
 		parseString = !isUndefined(parseString)?parseString:'MMM D, YYYY h:mm a';
@@ -1315,15 +1317,15 @@ app.config(['$httpProvider', function ($httpProvider) {
 
 		utcDT = moment.utc(dtString, parseString);
 		return utcDT.local().format(displayString);
-	}
+	};
 }]).filter('ceil', [function () {
 	return function (input) {
 		return Math.ceil(input);
-	}
+	};
 }]).filter('showSign', [function () {
 	return function (val) {
 		return (val >= 0?'+':'-') + Math.abs(val);
-	}
+	};
 }]).controller('core', ['$scope', 'SystemsService', function ($scope, SystemsService) {
 	$scope.pageLoadingPause = true;
 	$pageLoading = $('#pageLoading');
@@ -1335,7 +1337,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 
 	$scope.clearPageLoading = function(count) {
 		count--;
-		if (count == 0)
+		if (count === 0)
 			$scope.$emit('pageLoading');
 		return count;
 	};
@@ -1343,7 +1345,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 	$scope.$emit('pageLoading');
 	$scope.catMap = {};
 	$scope.aFAQs = {};
-	for (key in faqs.categories)
+	for (var key in faqs.categories)
 		$scope.catMap[key] = faqs.categories[key];
 	faqs.get().then(function (data) {
 		if (data.faqs) {

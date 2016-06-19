@@ -398,16 +398,16 @@
 			extract($mongo->games->findOne(array('gameID' => $gameID), array('gm' => true, 'forumID' => true, 'groupID' => true, 'public' => true, 'players' => true)));
 			$gmID = (int) $gm['userID'];
 			if ($currentUser->userID == $gmID) {
-				$mongo->games->update(array('gameID' => $gameID), array('$set' => array('retired' => new MongoDate(), 'status' => 'closed', 'players' => array())));
-				$groups = $mysql->query("DELETE FROM forums_permissions_group WHERE groupID = {$groupID}");
-				$forums = $mysql->query("SELECT forumID FROM forums WHERE gameID = {$gameID}")->fetchAll(PDO::FETCH_COLUMN);
-				$mysql->query("DELETE FROM forums_permissions_users WHERE forumID IN (".implode(', ', $forums).")");
-				$mysql->query("DELETE FROM forumAdmins WHERE forumID IN (".implode(', ', $forums).")");
-				$mysql->query("DELETE FROM forums_permissions_general WHERE forumID IN (".implode(', ', $forums).") AND forumID != {$forumID}");
-				foreach ($forums as $cForumID)
-					if ($cForumID != $forumID)
-						$mysql->query("INSERT INTO forums_permissions_general SET forumID = {$cForumID}");
-				$mysql->query("UPDATE forums_permissions_general SET `read` = {$public}, `write` = 0, `editPost` = 0, `deletePost` = 0, `createThread` = 0, `deleteThread` = 0, `addPoll` = 0, `addRolls` = -1, `addDraws` = -1, `moderate` = -1 WHERE forumID = {$forumID}");
+				$mongo->games->update(array('gameID' => $gameID), array('$set' => array('retired' => new MongoDate(), 'status' => 'closed')));
+				// $groups = $mysql->query("DELETE FROM forums_permissions_group WHERE groupID = {$groupID}");
+				// $forums = $mysql->query("SELECT forumID FROM forums WHERE gameID = {$gameID}")->fetchAll(PDO::FETCH_COLUMN);
+				// $mysql->query("DELETE FROM forums_permissions_users WHERE forumID IN (".implode(', ', $forums).")");
+				// $mysql->query("DELETE FROM forumAdmins WHERE forumID IN (".implode(', ', $forums).")");
+				// $mysql->query("DELETE FROM forums_permissions_general WHERE forumID IN (".implode(', ', $forums).") AND forumID != {$forumID}");
+				// foreach ($forums as $cForumID)
+					// if ($cForumID != $forumID)
+						// $mysql->query("INSERT INTO forums_permissions_general SET forumID = {$cForumID}");
+				// $mysql->query("UPDATE forums_permissions_general SET `read` = {$public}, `write` = 0, `editPost` = 0, `deletePost` = 0, `createThread` = 0, `deleteThread` = 0, `addPoll` = 0, `addRolls` = -1, `addDraws` = -1, `moderate` = -1 WHERE forumID = {$forumID}");
 #				$hl_retired = new HistoryLogger('retired');
 #				$hl_retired->addGame($gameID)->addForUsers($players)->addForCharacters($chars)->save();
 				displayJSON(array('success' => true));

@@ -47,12 +47,12 @@ controllers.controller('post', ['$scope', '$location', '$timeout', '$cookies', '
 	$scope.options = {
 		state: 'rolls_decks',
 		title: 'Rolls and Decks'
-	}
+	};
 	$scope.optionsStates = {
 		'options': 'Options',
 		'poll': 'Poll',
 		'rolls_decks': 'Rolls and Decks'
-	}
+	};
 	CurrentUser.load().then(function (loggedIn) {
 		$scope.loggedIn = loggedIn;
 		if (loggedIn)
@@ -73,7 +73,7 @@ controllers.controller('post', ['$scope', '$location', '$timeout', '$cookies', '
 					if ($scope.thread.locked || !$scope.thread.permissions.write)
 						location.href = '/forums/';
 					$scope.header = 'Post a reply - ' + $scope.thread.title;
-					for (charID in $scope.thread.characters)
+					for (var charID in $scope.thread.characters)
 						$scope.combobox.characters.push({
 							value: charID,
 							display: $scope.thread.characters[charID]
@@ -128,7 +128,7 @@ controllers.controller('post', ['$scope', '$location', '$timeout', '$cookies', '
 			previewLock = false;
 			return;
 		}
-		if ($scope.post.title.length == 0 || $scope.post.message.length == 0) {
+		if ($scope.post.title.length === 0 || $scope.post.message.length === 0) {
 			return;
 		}
 

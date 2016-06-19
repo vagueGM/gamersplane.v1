@@ -86,8 +86,6 @@
 			}
 		}
 
-		require_once(FILEROOT."/includes/packages/{$system}Character.package.php");
-		$charClass = Systems::systemClassName($system).'Character';
 		$rCharacters = $mongo->characters->find(array('game.gameID' => $gameID, 'user.userID' => $currentUser->userID), array('characterID' => true, 'name' => true));
 		$characters = array();
 		foreach ($rCharacters as $character)
@@ -268,7 +266,6 @@
 					</div>
 				</div>
 			</div>
-
 			<div id="submitDiv" class="alignCenter">
 				<button type="submit" class="fancyButton" skew-element>{{pageType != 'Edit'?'Post':'Edit'}}</button>
 				<button type="submit" ng-click="preview()" class="fancyButton" skew-element>Preview</button>
