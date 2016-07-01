@@ -764,10 +764,10 @@ app.config(['$httpProvider', function ($httpProvider) {
 								scope.data = [];
 							if (data && typeof data.then == 'function')
 								data.then(function (data) {
-									scope.data = copyObject(data);
+									scope.data = data;
 								});
 							else
-								scope.data = copyObject(data);
+								scope.data = data;
 						}, 500);
 				});
 			}
@@ -905,7 +905,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 						if (filterResults.length == 1 && filterResults[0].display.toLowerCase() == scope.search.toLowerCase()) {
 							scope.search = filterResults[0].display;
 							scope.value = filterResults[0];
-						} else if (scope.select) {
+						} else if (filterResults.length >= 1) {
 							noResults = true;
 							for (var key in filterResults) {
 								if (filterResults[key].display.toLowerCase() == scope.search.toLowerCase()) {
@@ -1085,18 +1085,19 @@ app.config(['$httpProvider', function ($httpProvider) {
 			}, 1);
 		}
 	};
-}]).directive('ngPlaceholder', [function () {
+}]).directive('ngPlaceholder', ['$timeout', function ($timeout) {
 	return {
 		restrict: 'A',
 		scope: {},
 		link: function (scope, element, attrs) {
 			var placeholder = attrs.ngPlaceholder;
 			if (typeof placeholder == 'string' && placeholder.length) {
-				element.blur(function () {
-					var $input = $(this);
+				$timeout(function () {
+					var $input = $(element);
+					$input.addClass('placeholder');
 					if ($input.val() === '' || $input.val() == placeholder)
 						$input.addClass('default');
-					$input.val(function () { return placeholder === ''?placeholder:$input.val(); }).focus(function () {
+					$input.focus(function () {
 						if ($input.val() == placeholder || $input.val() === '')
 							$input.val('').removeClass('default');
 					}).blur(function () {
@@ -1107,8 +1108,8 @@ app.config(['$httpProvider', function ($httpProvider) {
 							$input.removeClass('default');
 						else if ($input.val() == placeholder)
 							$input.addClass('default');
-					});
-				}).blur();
+					}).blur();
+				});
 			}
 		}
 	};

@@ -59,8 +59,7 @@
 						'system' => true,
 						'gm' => true,
 						'status' => true,
-						'players' => true,
-
+						'players' => true
 					)
 				);
 //				$rGames = $mysql->query("SELECT g.gameID, g.title, g.status, u.userID, u.username, s.shortName system_shortName, s.fullName system_fullName, p.isGM FROM games g INNER JOIN players p ON g.gameID = p.gameID INNER JOIN users u ON g.gmID = u.userID INNER JOIN systems s ON g.system = s.shortName WHERE p.userID = {$currentUser->userID} AND p.approved = 1 AND retired IS NULL");
@@ -97,11 +96,15 @@
 						'players' => true
 					)
 				);
+				if (!isset($_POST['hideInactive']) || !$_POST['hideInactive'])
+					$inactiveGMs = $mysql->query("SELECT u.userID FROM users u INNER JOIN usermeta um ON u.userID = um.userID AND um.metaKey = 'isGM' AND um.metaValue = 1 WHERE u.lastActivity < NOW() - INTERVAL 14 DAY")->fetchAll(PDO::FETCH_COLUMN);
 			}
 			$showFullGames = isset($_POST['showFullGames']) && $_POST['showFullGames']?true:false;
 			$games = array();
 			$gms = array();
 			foreach ($rGames as $game) {
+				if (isset($inactiveGMs) && in_array($game['gm']['userID'], $inactiveGMs))
+					continue;
 				$game['isGM'] = false;
 				$playerCount = -1;
 				foreach ($game['players'] as $player) {
@@ -277,20 +280,22 @@
 #				$hl_gameCreated = new HistoryLogger('gameCreated');
 #				$hl_gameCreated->addGame($gameID)->save();
 
+				$currentUser->updateUsermeta('isGM', true);
+
 				$lfgRecips = $mongo->users->find(array('lfg' => $details['system']), array('userID' => true));
 				if ($lfgRecips->count()) {
 					$userIDs = array();
 					foreach ($lfgRecips as $recip)
 						$userIDs[] = $recip['userID'];
-					$lfgRecips = $mysql->query("SELECT email FROM users WHERE userID IN (".implode(', ', $userIDs).")");
-					$recips = '';
+					$lfgRecips = $mysql->query("SELECT u.email FROM users u LEFT JOIN usermeta um ON u.userID = um.userID AND um.metaKey = 'newGameMail' WHERE u.userID IN (".implode(', ', $userIDs).") AND um.metaValue != 0");
+					$recips = [];
 					foreach ($lfgRecips as $info)
-						$recips .= $info['email'].', ';
+						$recips[] = $info['email'];
 					ob_start();
 					include('emails/newGameEmail.php');
 					$email = ob_get_contents();
 					ob_end_clean();
-					mail('Gamers Plane <contact@gamersplane.com>', "New {$systems->getFullName($system)} Game: {$details['title']}", $email, "Content-type: text/html\r\nFrom: Gamers Plane <contact@gamersplane.com>\r\nBcc: ".substr($recips, 0, -2));
+					mail('Gamers Plane <contact@gamersplane.com>', "New {$systems->getFullName($system)} Game: {$details['title']}", $email, "Content-type: text/html\r\nFrom: Gamers Plane <contact@gamersplane.com>\r\nBcc: ".implode(', ', $recips));
 				}
 
 				displayJSON(array('success' => true, 'gameID' => (int) $gameID));
@@ -410,6 +415,11 @@
 				// $mysql->query("UPDATE forums_permissions_general SET `read` = {$public}, `write` = 0, `editPost` = 0, `deletePost` = 0, `createThread` = 0, `deleteThread` = 0, `addPoll` = 0, `addRolls` = -1, `addDraws` = -1, `moderate` = -1 WHERE forumID = {$forumID}");
 #				$hl_retired = new HistoryLogger('retired');
 #				$hl_retired->addGame($gameID)->addForUsers($players)->addForCharacters($chars)->save();
+
+				$gameCount = $mongo->games->find(['gm.userID' => $currentUser->userID, 'retired' => null], ['_id' => true])->count();
+				if ($gameCount == 0)
+					$currentUser->deleteUsermeta('isGM');
+
 				displayJSON(array('success' => true));
 			} else
 				displayJSON(array('failed' => true, 'errors' => array('notGM')));
