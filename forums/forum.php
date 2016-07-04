@@ -12,7 +12,7 @@
 		$fixedGameMenu = false;
 	}
 
-	if ($forumID) 
+	if ($forumID)
 		$dispatchInfo['title'] = $forumManager->getForumProperty($forumID, 'title').' | '.$dispatchInfo['title'];
 ?>
 <?	require_once(FILEROOT.'/header.php'); ?>
@@ -39,8 +39,8 @@
 			<div class="tr headerTR headerbar hbDark" skew-element>
 				<div class="td icon">&nbsp;</div>
 				<div class="td name">Forum</div>
-				<div class="td numThreads"># of Threads</div>
-				<div class="td num1Posts"># of Posts</div>
+				<div class="td numThreads">Threads</div>
+				<div class="td numPosts">Posts</div>
 				<div class="td lastPost">Last Post</div>
 			</div>
 			<div class="sudoTable forumList hbdMargined" hb-margined>
@@ -66,7 +66,8 @@
 			<div class="tr headerTR headerbar hbDark">
 				<div class="td icon">&nbsp;</div>
 				<div class="td threadInfo">Thread</div>
-				<div class="td numPosts"># of Posts</div>
+				<div class="td numPosts">Posts</div>
+				<div class="td numViews">Views</div>
 				<div class="td lastPost">Last Post</div>
 			</div>
 			<div class="sudoTable threadList hbdMargined">
@@ -88,6 +89,7 @@
 						<span class="threadAuthor">by <a href="/user/{{thread.author.userID}}/" class="username" ng-bind-html="thread.author.username"></a> on <span>{{thread.datePosted | amUtc | amLocal | amDateFormat: 'MMM D, YYYY h:mm a'}}</span></span>
 					</div>
 					<div class="td numPosts">{{thread.postCount}}</div>
+					<div class="td numViews">{{thread.viewCount}}</div>
 					<div class="td lastPost">
 						<a href="/user/{{thread.lastPost.author.userID}}/" class="username" ng-bind-html="thread.lastPost.author.username"></a><br><span class="datePosted">{{thread.lastPost.datePosted | amUtc | amLocal | amDateFormat: 'MMM D, YYYY h:mm a'}}</span>
 					</div>
