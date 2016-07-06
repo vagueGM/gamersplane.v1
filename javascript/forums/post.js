@@ -1,6 +1,7 @@
 controllers.controller('post', ['$scope', '$location', '$timeout', '$cookies', 'CurrentUser', 'ForumsService', function ($scope, $location, $timeout, $cookies, CurrentUser, ForumsService) {
 	$scope.$emit('pageLoading');
 	var pathElements = getPathElements();
+	$scope.errors = [];
 	$scope.pageType = pathElements[1];
 	$scope.header = '';
 	$scope.post = {
@@ -124,13 +125,18 @@ controllers.controller('post', ['$scope', '$location', '$timeout', '$cookies', '
 	};
 	var previewLock = false;
 	$scope.save = function () {
+		console.log($scope.post.rolls);
 		if (previewLock) {
 			previewLock = false;
 			return;
 		}
-		if ($scope.post.title.length === 0 || $scope.post.message.length === 0) {
+		$scope.errors = [];
+		if ($scope.post.title.length === 0)
+		 	$scope.errors.push('noTitle');
+		if ($scope.post.message.length === 0)
+			$scope.errors.push('noMessage');
+		if ($scope.errors.length)
 			return;
-		}
 
 		var postData = {};
 		postData.type = $scope.pageType;
@@ -167,11 +173,8 @@ controllers.controller('post', ['$scope', '$location', '$timeout', '$cookies', '
 					3: 'Hide Everything'
 				}
 			};
-			holdData = scope.data;
-			scope.data = {
-				reason: '',
-				visibility: 0
-			};
+			scope.data.reason = '';
+			scope.data.visibility = 0;
 			scope.removeRoll = function () {
 				scope.data = null;
 				scope.visible = false;

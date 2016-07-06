@@ -111,12 +111,11 @@
 
 	require_once(FILEROOT.'/header.php');
 ?>
-<?	if ($_GET['errors'] && $formErrors->errorsExist()) { ?>
-		<div class="alertBox_error"><ul>
+		<div ng-if="errors.length" class="alertBox_error"><ul>
+			<li ng-if="errors.indexOf('noTitle') >= 0">You can't leave the title blank.</li>
+			<li ng-if="errors.indexOf('noMessage') >= 0">You can't leave the message blank.</li>
 <?
 		if ($formErrors->checkError('overdrawn')) echo "			<li>Incorrect number of cards drawn.</li>\n";
-		if ($formErrors->checkError('noTitle')) echo "			<li>You can't leave the title blank.</li>\n";
-		if ($formErrors->checkError('noMessage')) echo "			<li>You can't leave the message blank.</li>\n";
 		if ($formErrors->checkError('noDrawReason')) echo "			<li>You left draw reasons blank.</li>\n";
 		if ($formErrors->checkError('noPoll')) echo "			<li>You did not provide a poll question.</li>\n";
 		if ($formErrors->checkError('noOptions')) echo "			<li>You did not provide poll options or provided too few (minimum 2).</li>\n";
@@ -124,9 +123,6 @@
 		if ($formErrors->checkError('badRoll')) echo "			<li>One or more of your roll entries are malformed. Please make sure they are in the right format.</li>\n";
 ?>
 		</ul></div>
-<?
-	}
-?>
 		<div class="clearfix" hb-margined>
 			<breadcrumbs forums="thread.forumHeritage"></breadcrumbs>
 			<a ng-if="pageType != 'newThread'" id="returnToThread" href="/forums/thread/{{thread.threadID}}/">Return to thread</a>
@@ -242,10 +238,10 @@
 						<div id="addRoll" ng-click="addRoll">
 							<span>Add new roll: </span>
 							<combobox data="combobox.diceTypes" value="combobox.values.addDice" returnAs="value" select></combobox>
-							<button ng-click="addRoll()" class="fancyButton" skew-element>Add</button>
+							<a ng-click="addRoll()" href="" class="fancyButton" skew-element>Add</a>
 						</div>
 						<div id="newRolls">
-							<new-roll ng-repeat="(key, roll) in post.rolls" data="roll"></new-roll>
+							<new-roll ng-repeat="roll in post.rolls track by $index" data="roll"></new-roll>
 						</div>
 					</div>
 					<div ng-if="thread.options.allowDraws && decks.length" id="draws">
