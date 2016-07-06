@@ -1,5 +1,5 @@
 <?
-	class SWEOTEDie extends BaseDie {
+	class StarWarsFFGDie extends BaseDie {
 		private $type;
 		private $dice = array(
 			'ability' => array(1 => '', 'success', 'success', 'advantage', 'success_success', 'success_advantage', 'advantage_advantage'),
@@ -12,33 +12,19 @@
 			);
 
 		public function __construct($type) {
-			if (!array_key_exists($type, $this->dice)) 
-				throw new Exception('Invalid type');
+			if (!array_key_exists($type, $this->dice)) throw new Exception('Invalid type');
 			parent::__construct(sizeof($this->dice[$type]));
 			$this->type = $type;
 		}
 
 		public function __toString() {
-			return $this->result;
-		}
-
-		public function getType() {
-			return $this->type;
+			return $result;
 		}
 
 		public function roll() {
 			$this->result = $this->dice[$this->type][mt_rand(1, $this->sides)];
 
 			return $this->result;
-		}
-
-		public function getResult() {
-			return $this->result;
-		}
-
-		public function setResult($roll) {
-			$this->result = $this->dice[$this->type][$roll];
-			return true;
 		}
 	}
 ?>
