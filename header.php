@@ -21,6 +21,7 @@
 					<li><a href="/tools/dice/">Dice</a></li>
 					<li><a href="/tools/cards/">Cards</a></li>
 					<li><a href="/tools/music/">Music</a></li>
+					<li><a href="/tools/flgs/">FLGS Finder</a></li>
 				</ul>
 			</li>
 			<li><a href="/systems/">Systems</a></li>

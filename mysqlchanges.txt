@@ -1,1 +1,1 @@
-UPDATE dispatch SET ngController = 'acp_users' WHERE file = 'acp/users.php';
+INSERT INTO dispatch SET url = 'tools/flgs/', pageID = 'flgs', ngController = 'flgs', file = 'tools/flgs.php', title = 'FLGS Finder', loginReq = 0;
