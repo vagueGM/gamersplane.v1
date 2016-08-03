@@ -70,14 +70,6 @@ $(function() {
 
 	$('.trapezoid').each(trapezoidify);
 
-	$('#mainMenu li').mouseenter(function () {
-		$(this).children('ul').stop(true, true).slideDown();
-	}).mouseleave(function () {
-		$(this).children('ul').stop(true, true).slideUp();
-	}).find('ul').each(function () {
-		$(this).css('minWidth', $(this).parent().width());
-	});
-
 	if ($('#fixedMenu').size()) {
 		var $fixedMenu = $('#fixedMenu_window');
 		$('html').click(function () {
@@ -193,6 +185,11 @@ app.config(['$httpProvider', function ($httpProvider) {
 
 	return factory;
 }]).service('UsersService', ['$http', 'Upload', function ($http, Upload) {
+	this.getHeader = function () {
+		return $http.post(API_HOST + '/users/getHeader/').then(function (data) {
+			return data.data;
+		});
+	};
 	this.get = function (userID) {
 		params = {};
 		if (userID && parseInt(userID) > 0)
@@ -203,6 +200,11 @@ app.config(['$httpProvider', function ($httpProvider) {
 				return data.details;
 			else
 				return false;
+		});
+	};
+	this.search = function (params) {
+		return $http.get(API_HOST + '/users/search/', { 'params': params }).then(function (data) {
+			return data.data;
 		});
 	};
 	this.save = function (params, newAvatar) {
@@ -238,6 +240,11 @@ app.config(['$httpProvider', function ($httpProvider) {
 		return returnImg?"<img src=\"/images/sleeping.png\" title=\"" + diffStr + "\" alt=\"" + diffStr + "\">":diffStr;
 	};
 	this.avatarPath = function (userID, ext) { return '/users/avatars/' + userID + '.' + ext; };
+	this.suspend = function (userID, until) {
+		return $http.post(API_HOST + '/users/suspend/', { 'userID': userID, 'until': until }).then(function (data) {
+			return data.data;
+		});
+	};
 }]).service('SystemsService', ['$http', function ($http) {
 	this.systems = {};
 	this.init = function () {
@@ -444,7 +451,9 @@ app.config(['$httpProvider', function ($httpProvider) {
 	};
 }]).service('GamesService', ['$http', function ($http) {
 	this.getGames = function (params) {
-		return $http.post(API_HOST + '/games/getGames/', params).then(function (data) {
+		if (typeof params != 'undefined' && typeof params.systems != 'undefined')
+			params.systems = params.systems.join(',');
+		return $http.get(API_HOST + '/games/getGames/', { 'params': params }).then(function (data) {
 			if (data.data.success)
 				return data.data.games;
 		});
@@ -797,7 +806,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 				}
 			});
 			scope.$watch(function () { return scope.rValue; }, function (val) {
-				if (val) {
+				if (val && (!scope.select || scope.options.length)) {
 					hVal = null;
 					if (scope.returnAs == 'value') {
 						for (var key in scope.options) {
@@ -1276,6 +1285,16 @@ app.config(['$httpProvider', function ($httpProvider) {
 		link: function (scope, element, attrs) {
 		}
 	};
+}]).directive('userLink', [function () {
+	return {
+		restrict: 'E',
+		template: '<a href="/user/{{user.userID}}/" class="username" ng-bind-html="user.username"></a>',
+		scope: {
+			'user': '='
+		},
+		link: function (scope, element, attrs) {
+		}
+	};
 }]).filter('trustHTML', ['$sce', function($sce){
 	return function(text) {
 		if (typeof text != 'string')
@@ -1327,7 +1346,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 	return function (val) {
 		return (val >= 0?'+':'-') + Math.abs(val);
 	};
-}]).controller('core', ['$scope', 'SystemsService', function ($scope, SystemsService) {
+}]).controller('core', ['$scope', '$window', 'SystemsService', function ($scope, $window, SystemsService) {
 	$scope.pageLoadingPause = true;
 	$pageLoading = $('#pageLoading');
 
@@ -1342,6 +1361,99 @@ app.config(['$httpProvider', function ($httpProvider) {
 			$scope.$emit('pageLoading');
 		return count;
 	};
+}]).controller('header', ['$scope', '$timeout', 'UsersService', function ($scope, $timeout, UsersService) {
+	$scope.characters = [];
+	$scope.games = [];
+	$scope.avatar = '';
+	$scope.pmCount = 0;
+	UsersService.getHeader().then(function (data) {
+		$scope.loggedIn = data.success?true:false;
+		if ($scope.loggedIn) {
+			$scope.characters = data.characters;
+			$scope.games = data.games;
+			$scope.avatar = data.avatar;
+			$scope.pmCount = data.pmCount;
+		}
+	});
+
+	var $header = $('#bodyHeader'),
+		$headerEles = $('#bodyHeader, #bodyHeader > *'),
+		$logo = $('#headerLogo img'),
+		scrollPos = $(window).scrollTop(),
+		headerHeight = $header.height(),
+		scrollTimeout = null,
+		ratio = 1,
+		$mainMenu = $('#mainMenu');
+
+	$mainMenu.on('click', 'li', function ($event) {
+		$event.stopPropagation();
+		if ($(this).parent()[0] == $mainMenu[0] && $(this).children('ul').length) {
+			$event.preventDefault();
+			$(this).children('ul').stop(true, true).slideDown();
+		}
+	});
+	$('html').click(function ($event) {
+		$mainMenu.find('li').children('ul').stop(true, true).slideUp();
+	});
+	$timeout(function () {
+		$headerEles.height(scrollPos < 50?120 - scrollPos:70);
+		ratio = (scrollPos < 50?scrollPos:50) / 50;
+		$logo.height(100 - 47 * ratio);
+	});
+	$(window).scroll(function () {
+		scrollPos = $(this).scrollTop();
+		headerHeight = $header.height();
+		// console.log(scrollPos);
+		if (scrollPos >= 0 && scrollPos <= 50) {
+//			scrollTimeout = setTimeout(function () {
+				$headerEles.height(scrollPos < 50?120 - scrollPos:70);
+				ratio = (scrollPos < 50?scrollPos:50) / 50;
+				$logo.height(100 - 47 * ratio);
+//			}, 100);
+		} else if ($headerEles.height() > 70) {
+			$headerEles.height(70);
+			$logo.height(53);
+		}
+	});
+}]).controller('landing', ['$scope', '$timeout', 'SystemsService', 'GamesService', function ($scope, $timeout, SystemsService, GamesService) {
+	$scope.games = [];
+	GamesService.getGames({ 'limit': 4, 'sort': 'created', 'sortOrder': -1 }).then(function (data) {
+		$scope.games = data;
+	});
+	$scope.combobox = {
+		'system': { 'data': [{ 'value': 'all', 'display': 'All' }], 'value': null }
+	};
+	$scope.systems = [];
+	SystemsService.get({ 'getAll': true, 'excludeCustom': true }).then(function (data) {
+		for (var key in data.systems)
+			$scope.combobox.system.data.push({ 'value': data.systems[key].shortName, 'display': data.systems[key].fullName });
+	});
+	$scope.$watch(function () { return $scope.combobox.system.value; }, function () {
+		var system = $scope.combobox.system.value;
+		if (system == 'all')
+			system = null;
+		GamesService.getGames({ 'systems': system, 'limit': 3, 'sort': 'created', 'sortOrder': -1 }).then(function (data) {
+			$scope.games = data;
+		});
+	});
+
+	$scope.signup = {
+		'username': '',
+		'password': ''
+	};
+	$scope.formFocus = '';
+	$scope.setFormFocus = function (input) {
+		if (input == $scope.formFocus)
+			return;
+		$scope.formFocus = input;
+		if (input !== '') {
+			$timeout(function () {
+				$('#landing_signup_' + input + ' input').focus();
+			});
+		}
+	};
+
+	$scope.whatIsLogos = ['dnd5', 'thestrange', 'pathfinder', 'starwarsffg', '13thage', 'numenera', 'shadowrun5', 'fate', 'savageworlds'];
 }]).controller('faqs', ['$scope', 'faqs', function ($scope, faqs) {
 	$scope.$emit('pageLoading');
 	$scope.catMap = {};
