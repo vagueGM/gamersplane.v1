@@ -1,35 +1,21 @@
 				<div class="tr labelTR">
-					<label id="label_name" class="medText lrBuffer borderBox shiftRight">Name</label>
-					<label id="label_race" class="medText lrBuffer borderBox shiftRight">Race</label>
-					<label id="label_classes" class="medText lrBuffer borderBox shiftRight">Class(es)</label>
-					<label id="label_levels" class="shortNum lrBuffer borderBox">Level(s)</label>
+					<label for="name" class="medText lrBuffer borderBox shiftRight">Name</label>
+					<label for="race" class="medText lrBuffer borderBox shiftRight">Race</label>
+					<label for="classes" class="medText lrBuffer borderBox shiftRight">Class(es)</label>
+					<label for="levels" class="shortNum lrBuffer borderBox">Level(s)</label>
 				</div>
 				<div class="tr">
-					<input type="text" name="name" value="<?=$this->getName()?>" class="medText lrBuffer">
-					<input type="text" name="race" value="<?=$this->getRace()?>" class="medText lrBuffer">
+					<input type="text" ng-model="character.name" class="medText lrBuffer">
+					<input type="text" ng-model="character.race" class="medText lrBuffer">
 					<div id="classWrapper">
-						<a href="">[ Add Class ]</a>
-<?
-	$hasClasses = false;
-	foreach ($this->getClasses() as $class => $level) {
-			$hasClasses = true;
-?>
-						<div class="classSet">
-							<input type="text" name="class[]" value="<?=$class?>" class="medText lrBuffer">
-							<input type="text" name="level[]" value="<?=$level?>" class="shortNum levelInput lrBuffer">
+						<a href="" ng-click="addClass()">[ Add Class ]</a>
+						<div ng-repeat="class in classes track by $index" class="classSet">
+							<input type="text" ng-model="class.class" class="medText lrBuffer">
+							<input type="text" ng-model="class.level" class="shortNum levelInput lrBuffer">
 						</div>
-<?
-	}
-	if (!$hasClasses) {
-?>
-						<div class="classSet">
-							<input type="text" name="class[]" class="medText lrBuffer">
-							<input type="text" name="level[]" class="shortNum levelInput lrBuffer">
-						</div>
-<?	} ?>
 					</div>
 				</div>
-				
+
 				<div class="clearfix">
 					<div id="stats">
 <?
@@ -64,11 +50,11 @@
 						<div id="<?=$save?>Row" class="saveSet tr">
 							<label><?=strtoupper($save)?></label><div class="total"><?=$this->getSave($save, 'total')?></div>
 							<span>=</span>
-							<input type="text" name="saves[<?=$save?>][base]" value="<?=$this->getSave($save, 'base')?>">
+							<input type="text" ng-model="character.saves[<?=$save?>][base]">
 							<span>+</span>
 							<div id="<?=$save?>Stat" class="saveStat"><?=$this->getStatMod($this->getSaveStat($save), true)?></div>
 							<span>+</span>
-							<input type="text" name="saves[<?=$save?>][misc]" value="<?=$this->getSave($save, 'misc')?>">
+							<input type="text" ng-model="character.saves[<?=$save?>][misc]">
 						</div>
 <?	} ?>
 					</div>
@@ -79,8 +65,8 @@
 							<label for="hp_maximum">Max</label>
 						</div>
 						<div class="tr">
-							<input id="hp_current" type="text" name="hp[current]" value="<?=$this->getHP('current')?>">
-							<input id="hp_maximum" type="text" name="hp[maximum]" value="<?=$this->getHP('maximum')?>">
+							<input id="hp_current" type="text" ng-model="character.hp[current]">
+							<input id="hp_maximum" type="text" ng-model="character.hp[maximum]">
 						</div>
 					</div>
 					<div id="recoveries">
@@ -91,9 +77,9 @@
 							<label for="recoveries_roll" class="recovery">Roll</label>
 						</div>
 						<div class="tr">
-							<input id="recoveries_current" type="text" name="recoveries[current]" value="<?=$this->getRecoveries('current')?>">
-							<input id="recoveries_maximum" type="text" name="recoveries[maximum]" value="<?=$this->getRecoveries('maximum')?>">
-							<input id="recoveries_roll" type="text" name="recoveryRoll" value="<?=$this->getRecoveryRoll()?>" class="recovery medNum">
+							<input id="recoveries_current" type="text" ng-model="character.recoveries[current]">
+							<input id="recoveries_maximum" type="text" ng-model="character.recoveries[maximum]">
+							<input id="recoveries_roll" type="text" ng-model="character.recoveryRoll" class="recovery medNum">
 						</div>
 					</div>
 				</div>
@@ -101,11 +87,11 @@
 				<div class="clearfix">
 					<div id="uniqueThing" class="floatLeft">
 						<h2 class="headerbar hbDark">One Unique Thing</h2>
-						<textarea name="uniqueThing" class="hbdMargined"><?=$this->getUniqueThing()?></textarea>
+						<textarea ng-model="character.uniqueThing" class="hbdMargined"><?=$this->getUniqueThing()?></textarea>
 					</div>
 					<div id="iconRelationships" class="floatRight">
 						<h2 class="headerbar hbDark">Icon Relationships</h2>
-						<textarea name="iconRelationships" class="hbdMargined"><?=$this->getIconRelationships()?></textarea>
+						<textarea ng-model="character.iconRelationships" class="hbdMargined"><?=$this->getIconRelationships()?></textarea>
 					</div>
 				</div>
 				<div class="clearfix">
@@ -151,18 +137,18 @@
 									<span class="total addStat_<?=$this->getBasicAttacks($attack, 'stat')?>"><?=showSign($this->getLevel() + $this->getBasicAttacks($attack, 'misc'))?></span>
 									<span> = </span>
 									<span class="stat">
-										<select name="basicAttacks[<?=$attack?>][stat]">
+										<select ng-model="character.basicAttacks[<?=$attack?>][stat]">
 <?		foreach ($stats as $short => $stat) { ?>
-											<option value="<?=$short?>"<?=$this->getBasicAttacks($attack, 'stat') == $short?' selected="selected"':''?>><?=ucwords($short)?></option>
+											<option<?=$this->getBasicAttacks($attack, 'stat') == $short?' selected="selected"':''?>><?=ucwords($short)?></option>
 <?		} ?>
 										</select>
 									</span>
 									<span> + Lvl +</span>
-									<input type="text" name="basicAttacks[<?=$attack?>][misc]" value="<?=$this->getBasicAttacks($attack, 'misc')?>">
+									<input type="text" ng-model="character.basicAttacks[<?=$attack?>][misc]">
 								</div>
 								<div id="baDmg_<?=$attack?>" class="tr baDmg">
-									<span class="hit">Hit: <input type="text" name="basicAttacks[<?=$attack?>][hit]"  value="<?=$this->getBasicAttacks($attack, 'hit')?>" class="medNum"></span>
-									<span class="miss">Miss: <input type="text" name="basicAttacks[<?=$attack?>][miss]"  value="<?=$this->getBasicAttacks($attack, 'miss')?>" class="medNum"></span>
+									<span class="hit">Hit: <input type="text" ng-model="character.basicAttacks[<?=$attack?>][hit]"  class="medNum"></span>
+									<span class="miss">Miss: <input type="text" ng-model="character.basicAttacks[<?=$attack?>][miss]"  class="medNum"></span>
 								</div>
 <?	} ?>
 							</div>
@@ -174,9 +160,9 @@
 				</div>
 				<div id="items" class="clearfix">
 					<h2 class="headerbar hbDark">Items</h2>
-					<textarea name="items" class="hbdMargined"><?=$this->getItems()?></textarea>
+					<textarea ng-model="character.items" class="hbdMargined"><?=$this->getItems()?></textarea>
 				</div>
 				<div id="notes">
 					<h2 class="headerbar hbDark">Notes</h2>
-					<textarea name="notes" class="hbdMargined"><?=$this->getNotes()?></textarea>
+					<textarea ng-model="character.notes" class="hbdMargined"><?=$this->getNotes()?></textarea>
 				</div>
