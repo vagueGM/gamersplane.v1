@@ -436,11 +436,26 @@ app.config(['$httpProvider', function ($httpProvider) {
 	this.toggleFavorite = function (characterID) {
 		return $http.post(API_HOST + '/characters/toggleFavorite/', { 'characterID': characterID }).then(function (data) { return data.data; });
 	};
-	this.load = function (characterID, pr) {
-		if (typeof pr != 'boolean')
-			pr = false;
-		return $http.post(API_HOST + '/characters/load/', { 'characterID': characterID, 'printReady': pr }).then(function (data) { return data.data; });
+	this.load = function (characterID, options) {
+		if (typeof options != 'object')
+			options = {};
+		var validOptions = {
+			'pr': {
+				'type': 'boolean',
+				'default': false
+			}
+		},
+		postData = { 'characterID': parseInt(characterID) };
+		for (var option in validOptions) {
+			if (option in options && typeof options[option] == validOptions[option].type) {
+				postData[option] = options[option];
+			}
+		}
+		return $http.post(API_HOST + '/characters/load/', postData).then(function (data) { return data.data; });
 	};
+    this.getBookData = function (system) {
+        return $http.post(API_HOST + '/characters/getBookData/', { 'system': system }).then(function (data) { return data.data; });
+    };
 	this.save = function (characterID, character) {
 		return $http.post(API_HOST + '/characters/save/', { 'characterID': characterID, 'character': character }).then(function (data) { return data.data; });
 	};
@@ -599,10 +614,11 @@ app.config(['$httpProvider', function ($httpProvider) {
 		restrict: 'E',
 		templateUrl: '/angular/directives/combobox.php',
 		scope: {
-			'data': '=',
+			'data': '=?',
 			'rValue': '=value',
-			'search': '=',
-			'autocomplete': '='
+			'search': '=?',
+			'autocomplete': '=?',
+			'change': '&?'
 		},
 		link: function (scope, element, attrs) {
 			scope.select = !isUndefined(attrs.select)?true:false;
@@ -732,6 +748,12 @@ app.config(['$httpProvider', function ($httpProvider) {
 			scope.inputBlurred = function () {
 				scope.hasFocus = false;
 				scope.showDropdown = false;
+			};
+			scope.inputChanged = function () {
+				scope.showDropdown = true;
+				if (typeof scope.change == 'function') {
+					scope.change();
+				}
 			};
 
 			scope.toggleDropdown = function ($event) {
@@ -946,8 +968,9 @@ app.config(['$httpProvider', function ($httpProvider) {
 }]).directive('ngPlaceholder', ['$timeout', function ($timeout) {
 	return {
 		restrict: 'A',
+		require: 'ngModel',
 		scope: {},
-		link: function (scope, element, attrs) {
+		link: function (scope, element, attrs, ngModel) {
 			var placeholder = attrs.ngPlaceholder;
 			if (typeof placeholder == 'string' && placeholder.length) {
 				$timeout(function () {
@@ -961,12 +984,13 @@ app.config(['$httpProvider', function ($httpProvider) {
 					}).blur(function () {
 						if ($input.val() === '')
 							$input.val(placeholder).addClass('default');
-					}).change(function () {
-						if ($input.val() != placeholder)
-							$input.removeClass('default');
-						else if ($input.val() == placeholder)
-							$input.addClass('default');
 					}).blur();
+					scope.$watch(function () { return ngModel.$modelValue; }, function (val) {
+						if (val != placeholder && typeof val != 'undefined' && val !== '')
+							$input.removeClass('default');
+						else if (val == placeholder || val === '')
+							$input.addClass('default');
+					});
 				});
 			}
 		}

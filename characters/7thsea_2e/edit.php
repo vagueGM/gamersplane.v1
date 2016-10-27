@@ -11,7 +11,8 @@
 							</div>
 							<div class="tr">
 								<label class="textLabel leftLabel">Nation:</label>
-								<input type="text" ng-model="character.nation">
+								<combobox data="combobox.nation" value="character.nation" returnAs="value"></combobox>
+								<div ng-show="bookMatch.nation != null" class="tooltip">{{bookMatch.nation.bonus}}</div>
 							</div>
 							<div class="tr">
 								<label class="textLabel leftLabel">Religion:</label>
@@ -34,10 +35,10 @@
 						<div id="arcana">
 							<h2 class="headerbar hbDark" skew-element>Arcana</h2>
 							<div hb-margined="dark">
-								<div ng-repeat="(type, arcana) in character.arcana" class="arcana" ng-class="{ 'first': $first }">
-									<div class="tr"><input type="text" ng-model="arcana.arcana" ng-placeholder="Arcana"></div>
-									<div class="tr"><input type="text" ng-model="arcana.label" ng-placeholder="{{type.capitalizeFirstLetter()}}"></div>
-									<div class="tr"><textarea ng-model="arcana.description" ng-placeholder="Description"></textarea></div>
+								<div ng-repeat="aType in ['virtue', 'hubris']" ng-class="{ 'first': $first }">
+									<div class="tr"><combobox data="combobox.arcana" value="character.arcana[aType].arcana" placeholder="Arcana" returnAs="value"></combobox> <a ng-if="bookMatch.arcana[aType]" ng-click="setArcanaFromBook('arcana', aType)" href="" class="bookSetLink">[ Set from book ]</a></div>
+									<div class="tr"><combobox data="combobox[aType]" value="character.arcana[aType].name" placeholder="{{aType.capitalizeFirstLetter()}}" returnAs="value"></combobox></div>
+									<div class="tr"><textarea ng-model="character.arcana[aType].description" ng-placeholder="Description"></textarea></div>
 								</div>
 							</div>
 						</div>

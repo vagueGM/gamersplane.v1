@@ -36,6 +36,23 @@
 		protected $advantages = [];
 		protected $stories = array();
 
+		public static function getBookData() {
+			$bookData = [
+				'nations' => [],
+				'arcana' => [],
+				'backgrounds' => [],
+				'advantages' => [],
+				'skills' => []
+			];
+			$bookData['nations'] = iterator_to_array(DB::conn('mongo')->{'7thsea_nations'}->find([], ['_id' => false]));
+			$bookData['arcana'] = iterator_to_array(DB::conn('mongo')->{'7thsea_arcana'}->find([], ['_id' => false]));
+			$bookData['backgrounds'] = iterator_to_array(DB::conn('mongo')->{'7thsea_backgrounds'}->find([], ['_id' => false]));
+			$bookData['advantages'] = iterator_to_array(DB::conn('mongo')->{'7thsea_advantages'}->find([], ['_id' => false]));
+			$bookData['skills'] = iterator_to_array(DB::conn('mongo')->{'7thsea_skills'}->find([], ['_id' => false]));
+
+			displayJSON($bookData);
+		}
+
 		public function setConcept($concept) {
 			$this->concept = sanitizeString($concept);
 		}
