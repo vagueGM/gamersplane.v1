@@ -32,15 +32,18 @@ app.controller('myCharacters', ['$scope', '$http', '$sce', '$timeout', 'CurrentU
 			$scope.editing.new.label = character.label;
 			$scope.editing.new.cCharType = { 'value': character.charType, 'display': character.charType };
 		};
+		$scope.updateCharType = function (character, type) {
+			$scope.editing.new.cCharType = type;
+		};
 		$scope.saveEdit = function (character) {
 			CharactersService.saveBasic({
 				'characterID': character.characterID,
 				'label': $scope.editing.new.label,
-				'charType': $scope.editing.new.cCharType.value
+				'charType': $scope.editing.new.cCharType
 			}).then(function (data) {
 				if (data.success) {
 					character.label = $scope.editing.new.label;
-					character.charType = $scope.editing.new.cCharType.value;
+					character.charType = $scope.editing.new.cCharType;
 					$scope.editing = {
 						'characterID': null,
 						'new': {
