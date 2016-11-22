@@ -1,9 +1,9 @@
 app.controller('myCharacters', ['$scope', '$http', '$sce', '$timeout', 'CurrentUser', 'CharactersService', 'SystemsService', function ($scope, $http, $sce, $timeout, CurrentUser, CharactersService, SystemsService) {
-	$scope.characters = {};
-	$scope.library = {};
+	$scope.characters = [];
+	$scope.library = [];
 	$scope.systems = [];
 	$scope.charTypes = ['PC', 'NPC', 'Mob'];
-	$scope.newChar = { 'label': '', 'system': {}, 'charType': {} };
+	$scope.newChar = { 'label': '', 'system': '', 'charType': '' };
 	$scope.editing = {
 		'characterID': null,
 		'new': {
@@ -92,17 +92,22 @@ app.controller('myCharacters', ['$scope', '$http', '$sce', '$timeout', 'CurrentU
 			});
 		};
 
+		$scope.setSystem = function (search, system) {
+			$scope.newChar.system = system;
+		};
 		$scope.createChar = function () {
 			$scope.$emit('pageLoading');
 			var data = copyObject($scope.newChar);
 			data.label = data.label.trim();
-			if (data.label.length === 0) 
+			if (data.label.length === 0) {
 				return;
-			data.system = data.system.value;
-			data.charType = data.charType.value;
+			}
+			data.system = data.system;
+			data.charType = data.charType;
 			CharactersService.new(data).then(function (data) {
-				if (data.success)
+				if (data.success) {
 					window.location.href = '/characters/' + data.system + '/' + data.characterID + '/edit/';
+				}
 			});
 		};
 	});
