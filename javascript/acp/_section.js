@@ -161,8 +161,10 @@ controllers.controller('acp_users', ['$scope', '$timeout', 'UsersService', 'Rang
 }]).controller('acp_systems', ['$scope', '$http', '$sce', '$timeout', 'SystemsService', function ($scope, $http, $sce, $timeout, SystemsService) {
 	$scope.selectSystem = {
 		'data': [],
-		'value': {},
-		'search': ''
+		'value': ''
+	};
+	$scope.setSelectSystem = function (system) {
+		$scope.selectSystem.value = system;
 	};
 	function loadSystems() {
 		SystemsService.get({ 'getAll': true }).then(function (data) {
@@ -181,8 +183,7 @@ controllers.controller('acp_users', ['$scope', '$timeout', 'UsersService', 'Rang
 	loadSystems();
 	$scope.newGenre = {
 		'data': [],
-		'value': {},
-		'search': ''
+		'value': {}
 	};
 	function getGenres() {
 		SystemsService.getGenres().then(function (data) {
@@ -201,9 +202,10 @@ controllers.controller('acp_users', ['$scope', '$timeout', 'UsersService', 'Rang
 	$scope.saveSuccess = false;
 
 	$scope.loadSystem = function () {
-		if ($scope.selectSystem.value.value === null)
+		if ($scope.selectSystem.value === null) {
 			return;
-		SystemsService.get({ 'shortName': $scope.selectSystem.value.value }).then(function (data) {
+		}
+		SystemsService.get({ 'shortName': $scope.selectSystem.value }).then(function (data) {
 			$scope.newSystem = false;
 			$scope.edit = data.systems[0];
 //			$scope.selectSystem.search = '';
@@ -223,19 +225,23 @@ controllers.controller('acp_users', ['$scope', '$timeout', 'UsersService', 'Rang
 
 	function updateGenres() {
 		$scope.newGenre.data = [];
-		for (var key in $scope.allGenres)
-			if ($scope.edit.genres.indexOf($scope.allGenres[key]) == -1)
-				$scope.newGenre.data.push({
-					'value': $scope.allGenres[key],
-					'display': $scope.allGenres[key]
-				});
+		for (var key in $scope.allGenres) {
+			if ($scope.edit.genres.indexOf($scope.allGenres[key]) == -1) {
+				$scope.newGenre.data.push($scope.allGenres[key]);
+			}
+		}
 	}
+	$scope.setNewGenre = function (value) {
+		$scope.newGenre.value = value;
+	};
 	$scope.addGenre = function () {
-		if (typeof $scope.edit.genres == 'undefined')
+		if (typeof $scope.edit.genres == 'undefined') {
 			$scope.edit.genres = [];
-		if ($scope.newGenre.value.display.length === 0)
+		}
+		if ($scope.newGenre.value.length === 0) {
 			return;
-		$scope.edit.genres.push($scope.newGenre.value.display);
+		}
+		$scope.edit.genres.push($scope.newGenre.value);
 		updateGenres();
 	};
 	$scope.removeGenre = function (genre) {
@@ -402,8 +408,9 @@ controllers.controller('acp_users', ['$scope', '$timeout', 'UsersService', 'Rang
 	}
 	$scope.aFAQs = [];
 	faqs.get().then(function (data) {
-		if (data.faqs)
+		if (data.faqs) {
 			$scope.aFAQs = data.faqs;
+		}
 	});
 	$scope.editing = null;
 	$scope.editHold = null;
@@ -452,9 +459,13 @@ controllers.controller('acp_users', ['$scope', '$timeout', 'UsersService', 'Rang
 		'question': '',
 		'answer': ''
 	};
+	$scope.setCategory = function (value) {
+		$scope.newFAQ.category = value;
+	};
 	$scope.createFAQ = function () {
-		if ($scope.newFAQ.question.length === 0 || $scope.newFAQ.answer.length === 0)
+		if ($scope.newFAQ.question.length === 0 || $scope.newFAQ.answer.length === 0) {
 			return false;
+		}
 		faqs.create($scope.newFAQ).then(function (data) {
 			$scope.aFAQs[data.faq.category].push(data.faq);
 		});

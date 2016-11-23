@@ -319,9 +319,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 }]).service('faqs', ['$http', '$q', function ($http, $q) {
 	this.categories = { 'getting-started': 'Getting Started', 'characters': 'Characters', 'games': 'Games', 'tools': 'Tools' };
 	this.get = function () {
-		var deferred = $q.defer();
-		$http.post(API_HOST + '/faqs/get/').success(function (data) { deferred.resolve(data); });
-		return deferred.promise;
+		return $http.post(API_HOST + '/faqs/get/').then(function (data) { return data.data; });
 	};
 	this.changeOrder = function (id, direction) {
 		if (direction != 'up' && direction != 'down')
@@ -337,7 +335,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 	};
 	this.create = function (faq) {
 		var deferred = $q.defer();
-		$http.post(API_HOST + '/faqs/save/', { 'category': faq.category.value, 'question': faq.question, 'answer': faq.answer }).success(function (data) { deferred.resolve(data); });
+		$http.post(API_HOST + '/faqs/save/', { 'category': faq.category, 'question': faq.question, 'answer': faq.answer }).success(function (data) { deferred.resolve(data); });
 		return deferred.promise;
 	};
 	this.delete = function (id) {
@@ -962,8 +960,9 @@ app.config(['$httpProvider', function ($httpProvider) {
 	$scope.$emit('pageLoading');
 	$scope.catMap = {};
 	$scope.aFAQs = {};
-	for (var key in faqs.categories)
+	for (var key in faqs.categories) {
 		$scope.catMap[key] = faqs.categories[key];
+	}
 	faqs.get().then(function (data) {
 		if (data.faqs) {
 			$scope.$emit('pageLoading');

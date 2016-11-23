@@ -98,6 +98,7 @@ angular.module('rsCombobox', ['rx'])
 			});
 
 			scope.$watch(function () { return scope.search; }, function (newVal, oldVal) {
+				filterResults = $filter('filter')(scope.options, { 'display': scope.search });
 				scope.change({ search: scope.search, value: scope.value });
 			});
 			scope.$watch(function () { return scope.value; }, function (newVal, oldVal) {
@@ -130,8 +131,11 @@ angular.module('rsCombobox', ['rx'])
 									scope.value = '';
 								}
 							}
-						} else
+						} else if (!select) {
+							scope.value = scope.search;
+						} else {
 							scope.value = '';
+						}
 					}
 				}
 			});
