@@ -30,7 +30,7 @@ angular.module('rsCombobox', ['rx'])
 			}
 
 			scope.filterData = function () {
-				return $filter('filter')(scope.options, (!scope.bypassFilter || '') && { 'display': scope.search });
+				return $filter('filter')(scope.options, (!scope.bypassFilter || '') && { 'display': scope.search.toString() });
 			};
 			scope.$watch(function () { return scope.data; }, function (newVal, oldVal) {
 				scope.options = [];
@@ -98,7 +98,10 @@ angular.module('rsCombobox', ['rx'])
 			});
 
 			scope.$watch(function () { return scope.search; }, function (newVal, oldVal) {
-				filterResults = $filter('filter')(scope.options, { 'display': scope.search });
+				filterResults = $filter('filter')(scope.options, { 'display': scope.search.toString() }, select?true:false);
+				if (filterResults.length == 1) {
+					scope.value = filterResults[0].value;
+				}
 				scope.change({ search: scope.search, value: scope.value });
 			});
 			scope.$watch(function () { return scope.value; }, function (newVal, oldVal) {
@@ -108,7 +111,7 @@ angular.module('rsCombobox', ['rx'])
 			scope.$watch(function () { return scope.hasFocus; }, function (newVal, oldVal) {
 				if (!newVal) {
 					if (!isUndefined(scope.search) && scope.search.length !== 0) {
-						filterResults = $filter('filter')(scope.options, { 'display': scope.search });
+						filterResults = $filter('filter')(scope.options, { 'display': scope.search.toString() });
 						if (filterResults.length == 1 && filterResults[0].display.toLowerCase() == scope.search.toLowerCase()) {
 							scope.search = filterResults[0].display;
 							scope.value = filterResults[0].value;
@@ -148,12 +151,12 @@ angular.module('rsCombobox', ['rx'])
 					}
 					scope.value = '';
 					if (scope.curSelected == -1) {
-						filterResults = $filter('filter')(scope.options, (!scope.bypassFilter || '') && { 'display': scope.search }, true);
+						filterResults = $filter('filter')(scope.options, (!scope.bypassFilter || '') && { 'display': scope.search.toString() }, true);
 						if (filterResults.length == 1) {
 							scope.setBox(filterResults);
 						}
 					} else {
-						filterResults = $filter('filter')(scope.options, (!scope.bypassFilter || '') && { 'display': scope.search });
+						filterResults = $filter('filter')(scope.options, (!scope.bypassFilter || '') && { 'display': scope.search.toString() });
 						scope.setBox(filterResults[scope.curSelected]);
 					}
 				} else if ($event.keyCode == 38 || $event.keyCode == 40) {

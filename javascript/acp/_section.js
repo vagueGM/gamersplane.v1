@@ -32,22 +32,26 @@ controllers.controller('acp_users', ['$scope', '$timeout', 'UsersService', 'Rang
 				'hour': curDate.getHours(),
 				'minutes': curDate.getMinutes()
 			};
-			if ($scope.suspendUntil.minutes < 10)
-				$scope.suspendUntil.minutes = '0' + $scope.suspendUntil.minutes;
 			user.showForm = 'suspend';
-		} else
+		} else {
 			$user.showForm = null;
+		}
+	};
+	$scope.setDatePart = function(suspendUntil, part, value) {
+		suspendUntil[part] = value;
 	};
 	$scope.confirmSuspend = function (user) {
-		if (user.suspendedUntil === null)
+		if (user.suspendedUntil === null) {
 			suspendDate = new Date($scope.suspendUntil.year, $scope.suspendUntil.month - 1, $scope.suspendUntil.day, $scope.suspendUntil.hour, $scope.suspendUntil.minutes);
-		else
+		} else {
 			suspendDate = null;
+		}
 		UsersService.suspend(user.userID, moment(suspendDate).utc().unix()).then(function (data) {
-			if (data.suspended !== null)
+			if (data.suspended !== null) {
 				user.suspendedUntil = data.suspended * 1000;
-			else
+			} else {
 				user.suspendedUntil = null;
+			}
 			user.showForm = null;
 		});
 	};
