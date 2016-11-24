@@ -292,10 +292,11 @@ controllers.controller('acp_users', ['$scope', '$timeout', 'UsersService', 'Rang
 		$scope.pagination.numItems = data.data.totalCount;
 	});
 	$scope.pagination = { numItems: 0, itemsPerPage: 20 };
-	if ($.urlParam('page'))
+	if ($.urlParam('page')) {
 		$scope.pagination.current = parseInt($.urlParam('page'));
-	else
+	} else {
 		$scope.pagination.current = 1;
+	}
 
 	$scope.$watch(function () { return $scope.search; }, function () {
 		$scope.pagination.numItems = $filter('filter')($scope.links, { 'title': $scope.search }).length;
@@ -323,8 +324,13 @@ controllers.controller('acp_users', ['$scope', '$timeout', 'UsersService', 'Rang
 					'networks': [],
 					'categories': []
 				};
-			} else
+			} else {
 				scope.new = false;
+			}
+
+			scope.setLevel = function (value) {
+				scope.data.level = value;
+			};
 
 			scope.toggleEditing = function () {
 				scope.showEdit = !scope.showEdit;
@@ -340,11 +346,12 @@ controllers.controller('acp_users', ['$scope', '$timeout', 'UsersService', 'Rang
 					'fields': data,
 					'sendFieldsAs': 'form'
 				}).success(function (data) {
-					if (scope.new)
+					if (scope.new) {
 						window.location.reload();
-					else {
-						if (data.image)
+					} else {
+						if (data.image) {
 							scope.data.image = data.image;
+						}
 						scope.toggleEditing();
 					}
 				});
