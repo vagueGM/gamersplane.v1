@@ -46,8 +46,12 @@
 							<h2 class="headerbar hbDark" skew-element>Backgrounds <a ng-click="addItem('backgrounds')" href="">[ Add Background ]</a></h2>
 							<div hb-margined="dark">
 								<div ng-repeat="background in character.backgrounds track by $index" class="background" ng-class="{ 'first': $first }">
-									<div class="tr"><input type="text" ng-model="background.name" ng-placeholder="Background"></div>
+									<div class="tr">
+										<combobox data="combobox.background" value="background.name" change="showBackgroundSetFromBook(background)" placeholder="Background" returnAs="value"></combobox>
+										<a ng-if="background.bookMatch" ng-click="setBackgroundFromBook(background)" href="" class="bookSetLink">[ Set from book ]</a>
+									</div>
 									<div class="tr"><textarea ng-model="background.quirk" ng-placeholder="Quirk"></textarea></div>
+
 								</div>
 							</div>
 						</div>
