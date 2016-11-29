@@ -42,13 +42,20 @@
 			global $currentUser, $systems, $mongo;
 
 			$systems = Systems::getInstance();
-			if ($system == 'custom')
+			if ($system == 'custom') {
 				return false;
-			if ($systems->verifySystem($system))
+			}
+			if (!$systems->verifySystem($system)) {
 				return false;
+			}
 
 			$searchName = sanitizeString($name, 'search_format');
-			$ac = $mongo->charAutocomplete->findOne(array('searchName' => $searchName), array('_id' => true));
+			$ac = $mongo->charAutocomplete->findOne(array('searchName' => $searchName), array('_id' => true, 'systems' => true));
+			$alreadyExists = $mongo->userAddedItems->findOne(array('name' => $name, 'system' => $system), array('_id' => true));
+			if ($alreadyExists || ($ac && in_array($system, $ac['systems']))) {
+				return true;
+			}
+
 			$uai = array(
 				'name' => $name,
 				'itemID' => null,
@@ -67,10 +74,11 @@
 				)
 			);
 			if ($ac != null) {
-				$uai['itemID'] = $ac['_id']->{$id};
+				$uai['itemID'] = $ac['_id']->{'$id'};
 				$mongo->userAddedItems->insert($uai);
-			} else
+			} else {
 				$mongo->userAddedItems->insert($uai);
+			}
 
 			return true;
 		}
