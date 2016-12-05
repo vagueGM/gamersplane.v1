@@ -1,47 +1,55 @@
 <?
+	require_once(FILEROOT.'/includes/Systems.class.php');
+
 	class games {
 		function __construct() {
 			global $loggedIn, $pathOptions;
 
-			if ($pathOptions[0] == 'getGames')
+			if ($pathOptions[0] == 'getGames') {
 				$this->getGames();
-			elseif ($pathOptions[0] == 'details')
+			} elseif ($pathOptions[0] == 'details') {
 				$this->details($_POST['gameID']);
-			elseif ($pathOptions[0] == 'create')
+			} elseif ($pathOptions[0] == 'create') {
 				$this->createGame();
-			elseif ($pathOptions[0] == 'update')
+			} elseif ($pathOptions[0] == 'update') {
 				$this->updateGame();
-			elseif ($pathOptions[0] == 'toggleForum' && intval($_POST['gameID']))
+			} elseif ($pathOptions[0] == 'toggleForum' && intval($_POST['gameID'])) {
 				$this->toggleForum($_POST['gameID']);
-			elseif ($pathOptions[0] == 'toggleGameStatus' && intval($_POST['gameID']))
+			} elseif ($pathOptions[0] == 'toggleGameStatus' && intval($_POST['gameID'])) {
 				$this->toggleGameStatus($_POST['gameID']);
-			elseif ($pathOptions[0] == 'retire' && intval($_POST['gameID']))
+			} elseif ($pathOptions[0] == 'retire' && intval($_POST['gameID'])) {
 				$this->retire($_POST['gameID']);
-			elseif ($pathOptions[0] == 'apply')
+			} elseif ($pathOptions[0] == 'apply') {
 				$this->apply();
-			elseif ($pathOptions[0] == 'invite' && sizeof($pathOptions) == 1 && intval($_POST['gameID']) && strlen($_POST['user']))
-				$this->invite($_POST['gameID'], $_POST['user']);
-			elseif ($pathOptions[0] == 'invite' && ($pathOptions[1] == 'withdraw' || $pathOptions[1] == 'decline') && intval($_POST['gameID']) && strlen($_POST['userID']))
+			} elseif (
+				$pathOptions[0] == 'invite' &&
+				sizeof($pathOptions) == 1 &&
+				intval($_POST['gameID']) &&
+				(int) $_POST['userID']
+			) {
+				$this->invite($_POST['gameID'], $_POST['userID']);
+			} elseif ($pathOptions[0] == 'invite' && ($pathOptions[1] == 'withdraw' || $pathOptions[1] == 'decline') && intval($_POST['gameID']) && strlen($_POST['userID'])) {
 				$this->removeInvite($_POST['gameID'], $_POST['userID']);
-			elseif ($pathOptions[0] == 'invite' && $pathOptions[1] == 'accept' && intval($_POST['gameID']))
+			} elseif ($pathOptions[0] == 'invite' && $pathOptions[1] == 'accept' && intval($_POST['gameID'])) {
 				$this->acceptInvite($_POST['gameID']);
-			elseif ($pathOptions[0] == 'characters' && $pathOptions[1] == 'submit' && intval($_POST['gameID']) && intval($_POST['characterID']))
+			} elseif ($pathOptions[0] == 'characters' && $pathOptions[1] == 'submit' && intval($_POST['gameID']) && intval($_POST['characterID'])) {
 				$this->submitCharacter((int) $_POST['gameID'], (int) $_POST['characterID']);
-			elseif ($pathOptions[0] == 'characters' && $pathOptions[1] == 'remove' && intval($_POST['gameID']) && intval($_POST['characterID']))
+			} elseif ($pathOptions[0] == 'characters' && $pathOptions[1] == 'remove' && intval($_POST['gameID']) && intval($_POST['characterID'])) {
 				$this->removeCharacter((int) $_POST['gameID'], (int) $_POST['characterID']);
-			elseif ($pathOptions[0] == 'characters' && $pathOptions[1] == 'approve' && intval($_POST['gameID']) && intval($_POST['characterID']))
+			} elseif ($pathOptions[0] == 'characters' && $pathOptions[1] == 'approve' && intval($_POST['gameID']) && intval($_POST['characterID'])) {
 				$this->approveCharacter((int) $_POST['gameID'], (int) $_POST['characterID']);
-			elseif ($pathOptions[0] == 'getLFG')
+			} elseif ($pathOptions[0] == 'getLFG') {
 				$this->getLFG();
-			else
-				displayJSON(array('failed' => true));
+			} else {
+				displayJSON(['failed' => true]);
+			}
 		}
 
 		public function getGames() {
 			global $currentUser, $mysql, $mongo;
 
 			$myGames = false;
-			if (isset($_POST['my']) && $_POST['my']) {
+			if (isset($_GET['my']) && $_GET['my']) {
 				$myGames = true;
 				$rGames = $mongo->games->find(
 					array(
@@ -62,27 +70,18 @@
 						'players' => true
 					)
 				);
-//				$rGames = $mysql->query("SELECT g.gameID, g.title, g.status, u.userID, u.username, s.shortName system_shortName, s.fullName system_fullName, p.isGM FROM games g INNER JOIN players p ON g.gameID = p.gameID INNER JOIN users u ON g.gmID = u.userID INNER JOIN systems s ON g.system = s.shortName WHERE p.userID = {$currentUser->userID} AND p.approved = 1 AND retired IS NULL");
 			} else {
-/*				$sortOrder = $_POST['sortOrder'] == 'a'?1:-1;
-				if ($_POST['orderBy'] == 'createdOn_d' || !isset($_POST['orderBy']))
-					$orderBy = 'g.created DESC';
-				elseif ($_POST['orderBy'] == 'createdOn_a')
-					$orderBy = 'g.created ASC';
-				elseif ($_POST['orderBy'] == 'name_a')
-					$orderBy = 'g.title ASC';
-				elseif ($_POST['orderBy'] == 'name_d')
-					$orderBy = 'g.title DESC';
-				elseif ($_POST['orderBy'] == 'system')
-					$orderBy = 's.fullName ASC';
-				$rGames = $mysql->query("SELECT g.gameID, g.title, s.shortName system_shortName, s.fullName system_fullName, g.gmID userID, u.username, u.lastActivity FROM games g INNER JOIN systems s ON g.system = s.shortName LEFT JOIN players p ON g.gameID = p.gameID AND p.userID = {$currentUser->userID} INNER JOIN users u ON g.gmID = u.userID WHERE g.gmID != {$currentUser->userID} AND p.userID IS NULL AND g.status = 1".(isset($_POST['systems']) && sizeof($_POST['systems'])?' AND g.system IN ("'.implode('", "', $_POST['systems']).'")':'')." ORDER BY $orderBy");*/
 				$findParams = array(
 					'players.user.userID' => array('$ne' => $currentUser->userID),
 					'status' => 'open',
 					'retired' => null
 				);
-				if (sizeof($_POST['systems']))
-					$findParams['system'] = array('$in' => $_POST['systems']);
+				if (sizeof($_GET['systems'])) {
+					$systems = $_GET['systems'];
+					if (is_string($systems))
+						$systems = explode(',', $systems);
+					$findParams['system'] = array('$in' => $systems);
+				}
 				$rGames = $mongo->games->find(
 					$findParams,
 					array(
@@ -96,29 +95,40 @@
 						'players' => true
 					)
 				);
-				if (!isset($_POST['hideInactive']) || !$_POST['hideInactive'])
+				if (isset($_GET['sort']))
+					$rGames->sort([$_GET['sort'] => !isset($_GET['sortOrder']) || $_GET['sortOrder'] == 1?1:-1]);
+				if (!isset($_GET['hideInactive']) || !$_GET['hideInactive'])
 					$inactiveGMs = $mysql->query("SELECT u.userID FROM users u INNER JOIN usermeta um ON u.userID = um.userID AND um.metaKey = 'isGM' AND um.metaValue = 1 WHERE u.lastActivity < NOW() - INTERVAL 14 DAY")->fetchAll(PDO::FETCH_COLUMN);
 			}
-			$showFullGames = isset($_POST['showFullGames']) && $_POST['showFullGames']?true:false;
+			$showFullGames = isset($_GET['showFullGames']) && $_GET['showFullGames']?true:false;
+			$limit = isset($_GET['limit']) && (int) $_GET['limit'] > 0?(int) $_GET['limit']:null;
 			$games = array();
 			$gms = array();
+			$count = 0;
+			$systems = Systems::getInstance();
 			foreach ($rGames as $game) {
 				if (isset($inactiveGMs) && in_array($game['gm']['userID'], $inactiveGMs))
 					continue;
+				$game['system'] = $systems->getFullName($game['system']);
 				$game['isGM'] = false;
-				$playerCount = -1;
+				$game['playerCount'] = -1;
 				foreach ($game['players'] as $player) {
 					if ($player['user']['userID'] == $currentUser->userID)
 						$game['isGM'] = $player['isGM'];
 					if ($player['approved'])
-						$playerCount++;
+						$game['playerCount']++;
 				}
-				if (!$myGames && !$showFullGames && $playerCount == $game['numPlayers'])
+				if (!$myGames && !$showFullGames && $game['playerCount'] == $game['numPlayers'])
 					continue;
 				$game['start'] = $game['start']->sec;
-				unset($game['numPlayers'], $game['players']);
+				unset($game['players']);
 				$games[] = $game;
 				$gms[] = $game['gm']['userID'];
+				if ($limit != null) {
+					$count++;
+					if ($count == $limit)
+						break;
+				}
 			}
 			if (sizeof($gms)) {
 				$gms = array_unique($gms);
@@ -202,7 +212,6 @@
 
 		public function createGame() {
 			global $currentUser, $mysql, $mongo;
-			require_once(FILEROOT.'/includes/Systems.class.php');
 			$systems = Systems::getInstance();
 
 			$errors = array();
@@ -236,7 +245,7 @@
 				$errors[] = 'invalidSystem';
 			if ($details['postFrequency']['timesPer'] <= 0 || !($details['postFrequency']['perPeriod'] == 'd' || $details['postFrequency']['perPeriod'] == 'w'))
 				$errors[] = 'invalidFreq';
-			if ($details['numPlayers'] < 2)
+			if ($details['numPlayers'] < 1)
 				$errors[] = 'invalidNumPlayers';
 
 			if (sizeof($errors))
@@ -304,7 +313,6 @@
 
 		public function updateGame() {
 			global $currentUser, $mysql, $mongo;
-			require_once(FILEROOT.'/includes/Systems.class.php');
 			$systems = Systems::getInstance();
 
 			$gameID = intval($_POST['gameID']);
@@ -440,32 +448,54 @@
 			displayJSON(array('success' => true));
 		}
 
-		public function invite($gameID, $user) {
+		public function invite($gameID, $userID) {
 			global $mysql, $currentUser, $mongo;
 
 			$gameID = intval($gameID);
-			$user = sanitizeString($user, 'lower');
-			$gameInfo = $mongo->games->findOne(array('gameID' => $gameID), array('title' => true, 'system' => true, 'players' => true, 'invites' => true));
+			$gameInfo = $mongo->games->findOne(
+				['gameID' => $gameID],
+				[
+					'title' => true,
+					'system' => true,
+					'players' => true,
+					'invites' => true
+				]
+			);
 			$isGM = false;
 			foreach ($gameInfo['players'] as $player) {
-				if ($currentUser->userID == $player['user']['userID'])
-					if ($player['isGM'])
+				if ($currentUser->userID == $player['user']['userID']) {
+					if ($player['isGM']) {
 						$isGM = true;
-				if ($user == strtolower($player['user']['username']))
-					displayJSON(array('failed' => true, 'errors' => array('alreadyInGame')));
+					}
+				}
+				if ($user == strtolower($player['user']['userID'])) {
+					displayJSON([
+						'failed' => true,
+						'errors' => ['alreadyInGame']
+					]);
+				}
 			}
 			if ($isGM) {
-				$userCheck = $mysql->prepare("SELECT userID, username, email FROM users WHERE LOWER(username) = :username LIMIT 1");
-				$userCheck->execute(array(':username' => $user));
-				if (!$userCheck->rowCount())
-					displayJSON(array('failed' => true, 'errors' => array('invalidUser')));
+				$userCheck = $mysql->prepare("SELECT userID, username, email FROM users WHERE userID = :userID LIMIT 1");
+				$userCheck->execute(array(':userID' => $userID));
+				if (!$userCheck->rowCount()) {
+					displayJSON([
+						'failed' => true,
+						'errors' => ['invalidUser']
+					]);
+				}
 				$user = $userCheck->fetch();
-				if (isset($gameInfo['invites']))
-					foreach ($gameInfo['invites'] as $invite)
-						if ($currentUser->userID == $invite['user']['userID'])
-							displayJSON(array('failed' => true, 'errors' => 'alreadyInvited'));
+				if (isset($gameInfo['invites'])) {
+					foreach ($gameInfo['invites'] as $invite) {
+						if ($currentUser->userID == $invite['user']['userID']) {
+							displayJSON([
+								'failed' => true,
+								'errors' => ['alreadyInvited']
+							]);
+						}
+					}
+				}
 				$mongo->games->update(array('gameID' => $gameID), array('$push' => array('invites' => array('userID' => (int) $user['userID'], 'username' => $user['username']))));
-				require_once(FILEROOT.'/includes/Systems.class.php');
 				$systems = Systems::getInstance();
 				ob_start();
 				include('emails/gameInviteEmail.php');
@@ -608,7 +638,6 @@
 					$emailDetails->action = 'Character Added';
 					$emailDetails->gameInfo = (object) $game;
 					$charLabel = strlen($charDetails['name'])?$charDetails['name']:$charInfo['label'];
-					require_once(FILEROOT.'/includes/Systems.class.php');
 					$systems = Systems::getInstance();
 					$emailDetails->message = "<a href=\"http://gamersplane.com/user/{$currentUser->userID}/\" class=\"username\">{$currentUser->username}</a> applied a new character to your game: <a href=\"http://gamersplane.com/characters/{$characterID}/\">{$charLabel}</a>.";
 					ob_start();

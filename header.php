@@ -6,10 +6,10 @@
 <?	require_once(FILEROOT.'/styles/styles.php'); ?>
 </head>
 
-<body<?=(MODAL?' class="modal"':'')?> data-modal-width="<?=$dispatchInfo['modalWidth']?>" ng-app="gamersplane" ng-controller="core">
+<body<?=MODAL?' class="modal"':''?> data-modal-width="<?=$dispatchInfo['modalWidth']?>" ng-app="gamersplane" ng-controller="core">
 	<div id="pageLoading"><loading-spinner pause="pageLoadingPause"></loading-spinner></div>
 <?	if (!MODAL) { ?>
-<header id="bodyHeader" ng-controller="header">
+<header id="bodyHeader" ng-controller="header"<?=isset($contentClasses) && array_search('fullWidthBody', $contentClasses) >= 0?' class="fullWidthBody"':''?>>
 	<div id="headerBG"></div>
 	<div class="bodyContainer">
 		<a id="headerLogo" href="/"><img src="/images/bodyComponents/logo.png" alt="Gamers Plane Logo"></a>
@@ -29,21 +29,21 @@
 				<a href="/characters/my/">Characters</a>
 				<ul ng-if="characters.length">
 					<li ng-repeat="char in characters | limitTo: 5"><a href="/characters/{{char.system}}/{{char.characterID}}/" ng-bind-html="char.label | trustHTML"></a></li>
-					<li ng-if="characters.length > 5"><a href="/characters/my/">All characters</a></li>
+					<li><a href="/characters/my/">All characters</a></li>
 				</ul>
 			</li>
 			<li>
-				<a href="/games/">Games</a>
-				<ul ng-if="games.length">
+				<a ng-href="{{loggedIn?'/games/':'/games/list/'}}">Games</a>
+				<ul ng-if="loggedIn && games.length">
 					<li ng-repeat="game in games | limitTo: 5"><a href="/games/{{game.gameID}}/"><span ng-bind-html="game.title | trustHTML"></span> <img ng-if="game.isGM" src="/images/gm_icon.png"></a></li>
-					<li ng-if="games.lenght > 5"><a href="/games/my/">All games</a></li>
+					<li><a href="/games/my/">All games</a></li>
 				</ul>
 			</li>
 			<li><a href="/forums/">Forums</a></li>
 			<li ng-show="loggedIn"><a href="/gamersList/">The Gamers</a></li>
 			<li><a href="/links/">Links</a></li>
 			<li id="headerRegister" ng-show="!loggedIn"><a href="/register/" class="last">Register</a></li>
-			<li id="headerLogin" ng-show="!loggedIn"><a href="/login/" class="loginLink">Login</a></li>
+			<li id="headerLogin" ng-show="!loggedIn"><a href="/login/" colorbox>Login</a></li>
 			<li ng-show="loggedIn" id="userMenu">
 				<a href="/ucp/"><img ng-src="{{avatar}}" class="avatar"></a>
 				<a ng-if="pmCount > 0" href="/pms/" class="mail"><img src="/images/envelope.jpg" title="Private Messages" alt="Private Messages"></a>
@@ -57,8 +57,8 @@
 	</div>
 </header>
 
-<div id="content"><div class="bodyContainer clearfix">
-	<div id="page_<?=PAGE_ID?>"<?=strlen($dispatchInfo['bodyClass'])?' class="'.implode(' ', $bodyClasses).'"':''?><?=strlen($dispatchInfo['ngController'])?" ng-controller=\"{$dispatchInfo['ngController']}\"":''?>>
+<div id="content"<?=isset($contentClasses)?' class="'.implode(' ', $contentClasses).'"':''?>><div class="bodyContainer clearfix">
+	<div id="page_<?=PAGE_ID?>"<?=sizeof($bodyClasses)?' class="'.implode(' ', $bodyClasses).'"':''?><?=strlen($dispatchInfo['ngController'])?" ng-controller=\"{$dispatchInfo['ngController']}\"":''?>>
 		<div id="stupidIE">
 			<p>Hm... seems like you're using IE. Can I suggest a better browser, such as <a href="http://www.mozilla.com/en-US/firefox/" target="_blank">Firefox</a>, <a href="http://www.googlechrome.com/" target="_blank">Chrome</a> or <a href="http://www.opera.com/" target="_blank">Opera</a>? There are other choices too.</p>
 			<p>If you wanna stick with IE, or can't switch, I'll warn you right now, while most of this site should work with IE, stuff might come up buggy, so you might not enjoy it as much...</p>

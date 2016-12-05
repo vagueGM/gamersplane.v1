@@ -40,7 +40,6 @@ controllers.controller('listGames', ['$scope', '$filter', 'CurrentUser', 'UsersS
 				reqLoading = $scope.clearPageLoading(reqLoading);
 				$scope.games = data;
 				$scope.games.forEach(function (game) {
-					game.system = $scope.systems[game.system];
 					game.lastActivity = UsersService.inactive(game.lastActivity);
 				});
 				equalizeHeights();
@@ -52,25 +51,32 @@ controllers.controller('listGames', ['$scope', '$filter', 'CurrentUser', 'UsersS
 		$scope.clearSystems = function () {
 			$scope.filter.systems = [];
 		};
+		$scope.setFilter = function (orderBy) {
+			$scope.filter.orderBy = orderBy;
+		};
 		$scope.filterGames = function () {
 			$scope.$emit('pageLoading');
 			var filter = copyObject($scope.filter);
-			$scope.orderBy = filter.orderBy.value.slice(-1) == 'd'?'-':'';
-			if (filter.orderBy.value.slice(0, -2) == 'createdOn')
+			$scope.orderBy = filter.orderBy.slice(-1) == 'd'?'-':'';
+			if (filter.orderBy.slice(0, -2) == 'createdOn') {
 				$scope.orderBy += 'start';
-			else if (filter.orderBy.value.slice(0, -2) == 'name')
+			} else if (filter.orderBy.slice(0, -2) == 'name') {
 				$scope.orderBy += 'title';
-			else if (filter.orderBy.value == 'system')
-				$scope.orderBy += filter.orderBy.value;
-			console.log($scope.orderBy);
-			if (filter.systems.length === 0)
+			} else if (filter.orderBy == 'system') {
+				$scope.orderBy += filter.orderBy;
+			}
+			if (filter.systems.length === 0) {
 				filter.systems = null;
+			}
 			$scope.games = [];
-			GamesService.getGames({ 'systems': filter.systems, 'showFullGames': filter.showFullGames, 'showInactiveGMs': filter.showInactiveGMs }).then(function (data) {
+			GamesService.getGames({
+				'systems': filter.systems,
+				'showFullGames': filter.showFullGames,
+				'showInactiveGMs': filter.showInactiveGMs
+			}).then(function (data) {
 				$scope.$emit('pageLoading');
 				$scope.games = data;
 				$scope.games.forEach(function (game) {
-					game.system = $scope.systems[game.system];
 					game.lastActivity = UsersService.inactive(game.lastActivity);
 				});
 				equalizeHeights();
