@@ -3,6 +3,8 @@
 	Created by RhoVisions, designer Rohit Sodhia
 */
 
+@import "variables.less";
+
 /*
 	z-index blocks:
 */
@@ -899,7 +901,15 @@ div.prettySelect > div {
 	width: 100%;
 
 	&, & > * {
+		height: 70px;
+	}
+
+	&.large, &.large > * {
 		height: 120px;
+
+		#headerLogo img {
+			height: 100%;
+		}
 	}
 
 	.bodyContainer {
@@ -907,7 +917,6 @@ div.prettySelect > div {
 		align-items: center;
 
 		& > * {
-			vertical-align: middle;
 			display: inline-block;
 		}
 	}
@@ -915,6 +924,11 @@ div.prettySelect > div {
 
 #bodyHeader, #bodyHeader > *, #headerLogo {
 	transition: all .1s;
+}
+
+#bodyHeader .bodyContainer {
+	width: auto;
+	max-width: @bodyWidth;
 }
 
 #headerBG {
@@ -929,11 +943,40 @@ div.prettySelect > div {
 
 #headerLogo {
 	flex-grow: 0;
+
+	img {
+		height: 60px;
+	}
 }
 
-#mainMenu {
+#mainMenuContainer {
 	flex-grow: 1;
 	text-align: right;
+}
+
+#mainMenuContainer > div {
+	display: flex;
+	justify-content: flex-end;
+	align-items: center;
+}
+
+#mainMenu, #mainUserMenu, #mobileMenuHamburger {
+	display: inline-block;
+}
+
+#mobileMenuHamburger {
+	margin: 0 8px;
+	cursor: pointer;
+}
+
+@media (min-width: @headerMenuBreak) {
+	#mobileMenuHamburger {
+		display: none;
+	}
+}
+
+#mainMenu, #mainUserMenu {
+	margin-left: 0;
 
 	& > * {
 		vertical-align: middle;
@@ -1001,7 +1044,38 @@ div.prettySelect > div {
 			vertical-align: middle;
 		}
 	}
+}
 
+@media (max-width: @headerMenuBreak) {
+	#mainMenu {
+		position: absolute;
+		display: none;
+		top: 70px;
+		right: 50px;
+		width: 115px;
+		border: 1px solid #AAA;
+		border-top: none;
+		background: #DDD;
+
+		li {
+			display: block;
+			padding-right: 5px;
+
+			&:hover {
+				background-color: #BBB;
+			}
+
+			a {
+				&, &:hover, &:active, &:visited {
+					text-align: right;
+					text-decoration: none;
+				}
+			}
+		}
+	}
+}
+
+#mainUserMenu {
 	#userMenu {
 		.avatar {
 			max-height: 40px;

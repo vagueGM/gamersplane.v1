@@ -817,6 +817,14 @@ app.config(['$httpProvider', function ($httpProvider) {
 		link: function (scope, element, attrs) {
 		}
 	};
+}]).directive('hamburgerMenu', [function () {
+	return {
+		restrict: 'E',
+		templateUrl: '/angular/directives/hamburger.html',
+		scope: {},
+		link: function (scope, element, attrs) {
+		}
+	};
 }]).filter('trustHTML', ['$sce', function($sce){
 	return function(text) {
 		if (typeof text != 'string')
@@ -895,25 +903,39 @@ app.config(['$httpProvider', function ($httpProvider) {
 	});
 
 	var $header = $('#bodyHeader'),
+		$mainMenu = $('#mainMenu'),
 		$headerEles = $('#bodyHeader, #bodyHeader > *'),
 		$logo = $('#headerLogo img'),
 		scrollPos = $(window).scrollTop(),
 		headerHeight = $header.height(),
 		scrollTimeout = null,
-		ratio = 1,
-		$mainMenu = $('#mainMenu');
+		ratio = 1;
+
+	$(window).on('resize', function () {
+		if (window.innerWidth > 790) {
+			$mainMenu.show();
+		} else {
+			$mainMenu.hide();
+		}
+	});
 
 	$mainMenu.on('click', 'li', function ($event) {
-		$event.stopPropagation();
-		if ($(this).parent()[0] == $mainMenu[0] && $(this).children('ul').length) {
-			$event.preventDefault();
-			$(this).children('ul').stop(true, true).slideDown();
+		if (window.innerWidth > 790) {
+			$event.stopPropagation();
+			if ($(this).parent()[0] == $mainMenu[0] && $(this).children('ul').length) {
+				$event.preventDefault();
+				$(this).children('ul').stop(true, true).slideDown();
+			}
 		}
+	});
+	$('#mobileMenuHamburger').on('click', function ($event) {
+		$event.preventDefault();
+		$mainMenu.toggle();
 	});
 	$('html').click(function ($event) {
 		$mainMenu.find('li').children('ul').stop(true, true).slideUp();
 	});
-	$timeout(function () {
+/*	$timeout(function () {
 		$headerEles.height(scrollPos < 50?120 - scrollPos:70);
 		ratio = (scrollPos < 50?scrollPos:50) / 50;
 		$logo.height(100 - 47 * ratio);
@@ -932,7 +954,7 @@ app.config(['$httpProvider', function ($httpProvider) {
 			$headerEles.height(70);
 			$logo.height(53);
 		}
-	});
+	});*/
 }]).controller('landing', ['$scope', '$timeout', 'SystemsService', 'GamesService', function ($scope, $timeout, SystemsService, GamesService) {
 	$scope.games = [];
 	GamesService.getGames({
