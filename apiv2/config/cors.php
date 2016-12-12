@@ -11,12 +11,11 @@ return [
      | to accept any value.
      |
      */
-    'supportsCredentials' => false,
-    'allowedOrigins' => ['*'],
-    'allowedHeaders' => ['*'],
+    'supportsCredentials' => true,
+    'allowedOrigins' => ['http://gamersplane.local'],
+    'allowedHeaders' => ['GET, POST, OPTIONS'],
     'allowedMethods' => ['*'],
     'exposedHeaders' => [],
     'maxAge' => 0,
     'hosts' => [],
 ];
-

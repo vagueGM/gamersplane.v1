@@ -817,6 +817,15 @@ app.config(['$httpProvider', function ($httpProvider) {
 		link: function (scope, element, attrs) {
 		}
 	};
+}])
+.directive('flgsIcon', [function () {
+	return {
+		restrict: 'E',
+		templateUrl: '/angular/directives/svgs/flgsIcon.html',
+		scope: {},
+		link: function (scope, element, attrs) {
+		}
+	};
 }]).filter('trustHTML', ['$sce', function($sce){
 	return function(text) {
 		if (typeof text != 'string')

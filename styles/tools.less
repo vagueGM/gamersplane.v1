@@ -3,20 +3,22 @@
 	Created by RhoVisions, designer Rohit Sodhia
 */
 
+@import "imports.less";
+
 #page_tools {
 	#toolsList {
 		text-align: center;
 	}
 
 	#toolsList {
+		display: flex;
+		justify-content: center;
+
 		a {
-			display: inline-block;
 			margin: 0 15px;
 			padding: 5px 15px;
 			border: 3px solid #A00;
-			-moz-border-radius: 10px;
-			-webkit-border-radius: 10px;
-			border-radius: 10px;
+			.border-radius(10px);
 			background: #FFF;
 
 			&:hover {
@@ -27,10 +29,33 @@
 				margin-right: 15px;
 			}
 
+			.imgWrapper, p {
+				display: flex;
+				justify-content: center;
+				align-items: center;
+				width: 160px;
+			}
+
+			.imgWrapper {
+				height: 160px;
+			}
+
+			img, svg {
+				height: 100%;
+			}
+
+			&#flgsLink {
+				svg {
+					width: 70%
+				}
+			}
+
 			p {
+				height: 2.5em;
+				margin-top: .7em;
 				text-align: center;
-				margin-top: 1em;
 				font-size: 1.5em;
+				line-height: 1.25em;
 			}
 		}
 	}
@@ -544,5 +569,5 @@
 }
 
 #page_flgs {
-	
+
 }
